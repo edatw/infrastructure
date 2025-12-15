@@ -12,9 +12,8 @@ rules:
   colons:
     max-spaces-after: -1
 
-  # Document start is optional for single-document files
-  document-start:
-    present: false
+  # Document start is optional (allow both with and without ---)
+  document-start: disable
 
   # Truthy values are common in Kubernetes and Terraform
   truthy:
@@ -23,6 +22,11 @@ rules:
 
   # Comments indentation is flexible
   comments-indentation: disable
+
+  # Allow comments without starting space (e.g., #commented-out-code)
+  comments:
+    min-spaces-from-content: 1
+    require-starting-space: false
 
   # Allow empty values in mappings
   empty-values:
@@ -40,3 +44,11 @@ ignore: |
   node_modules/
   venv/
   .terraform/
+  # SOPS-encrypted files have auto-generated format with long lines
+  **/*.sops.yaml
+  **/*.sops.yml
+  **/secret-*.yaml
+  **/secret-*.yml
+  # Files with SOPS-encrypted field values
+  **/persistent-volume-*.yaml
+  **/storage-class-*.yaml

@@ -1,16 +1,46 @@
-# SOPS configuration for ArgoCD test applications
-# Uses dedicated ArgoCD Age key for KSOPS
+# SOPS configuration for ArgoCD applications
+# Each cluster uses a dedicated ArgoCD Age key for KSOPS
 
 creation_rules:
-  # edatw-ed8 StorageClass files - encrypt source field
-  - path_regex: edatw-ed8/.*storage-class.*\.(yaml|yml)$
+  # ==========================================================================
+  # edatw-cluster overlay rules (new cluster)
+  # Key: argocd-edatw-ksops
+  # ==========================================================================
+  # edatw-ed8 StorageClass files for edatw-cluster
+  - path_regex: edatw-ed8/overlays/edatw-cluster/.*storage-class.*\.(yaml|yml)$
     encrypted_regex: '^(source)$'
     age: age1dvf63gewxhnydzt4yjlpp23qplqekt979udv4xgk47zct48kh40srrdjwn
-  # edatw-ed8 PersistentVolume files - encrypt CSI fields
-  - path_regex: edatw-ed8/.*persistent-volume.*\.(yaml|yml)$
+    #age: age16t62g0jhay0hptsa9t5hlueqdekzqy39rlrzz7qkm29ym2t5jamswdp2px
+  # edatw-ed8 PersistentVolume files for edatw-cluster
+  - path_regex: edatw-ed8/overlays/edatw-cluster/.*persistent-volume.*\.(yaml|yml)$
     encrypted_regex: '^(volumeHandle|source)$'
     age: age1dvf63gewxhnydzt4yjlpp23qplqekt979udv4xgk47zct48kh40srrdjwn
-  # Default rule for other applications
+    #age: age16t62g0jhay0hptsa9t5hlueqdekzqy39rlrzz7qkm29ym2t5jamswdp2px
+  # Secret files for edatw-cluster
+  - path_regex: .*/overlays/edatw-cluster/.*secret.*\.(enc|yaml|yml)$
+    encrypted_regex: '^(data|stringData)$'
+    age: age16t62g0jhay0hptsa9t5hlueqdekzqy39rlrzz7qkm29ym2t5jamswdp2px
+
+  # ==========================================================================
+  # shangkuei-xyz-talos overlay rules (existing cluster)
+  # Key: argocd-shangkuei-xyz-ksops
+  # ==========================================================================
+  # edatw-ed8 StorageClass files for shangkuei-xyz-talos
+  - path_regex: edatw-ed8/overlays/shangkuei-xyz-talos/.*storage-class.*\.(yaml|yml)$
+    encrypted_regex: '^(source)$'
+    age: age1dvf63gewxhnydzt4yjlpp23qplqekt979udv4xgk47zct48kh40srrdjwn
+  # edatw-ed8 PersistentVolume files for shangkuei-xyz-talos
+  - path_regex: edatw-ed8/overlays/shangkuei-xyz-talos/.*persistent-volume.*\.(yaml|yml)$
+    encrypted_regex: '^(volumeHandle|source)$'
+    age: age1dvf63gewxhnydzt4yjlpp23qplqekt979udv4xgk47zct48kh40srrdjwn
+  # Secret files for shangkuei-xyz-talos
+  - path_regex: .*/overlays/shangkuei-xyz-talos/.*secret.*\.(enc|yaml|yml)$
+    encrypted_regex: '^(data|stringData)$'
+    age: age1dvf63gewxhnydzt4yjlpp23qplqekt979udv4xgk47zct48kh40srrdjwn
+
+  # ==========================================================================
+  # Default fallback rule (for any unmatched paths)
+  # ==========================================================================
   - path_regex: .*secret.*\.(enc|yaml|yml)$
     encrypted_regex: '^(data|stringData)$'
     age: age1dvf63gewxhnydzt4yjlpp23qplqekt979udv4xgk47zct48kh40srrdjwn
