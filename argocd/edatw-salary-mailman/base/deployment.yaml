@@ -22,6 +22,8 @@ spec:
       serviceAccountName: salary-mailman
       imagePullSecrets:
         - name: ghcr-pull-secret
+      nodeSelector:
+        kubernetes.io/arch: amd64
       securityContext:
         fsGroup: 2000
         runAsNonRoot: true
