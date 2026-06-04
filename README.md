@@ -163,6 +163,14 @@ kubectl apply -k argocd/edatw-salary-mailman/overlays/shangkuei-xyz-talos
 
 For detailed application documentation, see [argocd/README.md](argocd/README.md).
 
+## Environments
+
+| Environment | Location | Auto-Deploy | Approval | Use Case |
+|-------------|----------|-------------|----------|----------|
+| Development | `argocd/*/overlays/dev-*` | Yes (on merge) | No | Testing |
+| Staging | `argocd/*/overlays/staging-*` | Manual trigger | Team lead | Pre-prod validation |
+| Production | `argocd/*/overlays/*-talos` | Manual only | Multiple reviewers | Live workloads |
+
 ## Common Operations
 
 ### Working with ArgoCD Applications
@@ -430,6 +438,15 @@ kubectl cluster-info
 # Verify namespace exists
 kubectl get ns {namespace}
 ```
+
+### Common Pitfalls
+
+1. **Committing unencrypted secrets** -- always encrypt with SOPS before committing
+2. **Hardcoded values** -- use variables and ConfigMaps instead
+3. **Missing namespaces** -- always define explicit namespaces in manifests
+4. **No resource limits** -- define CPU/memory limits for all workloads
+5. **Unclear naming** -- follow `edatw-{service}` naming convention
+6. **Skipping validation** -- always run `kustomize build` and `kubectl --dry-run` before committing
 
 ### Getting Help
 
