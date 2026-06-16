@@ -1,0 +1,468 @@
+# EDATW Cluster - Justfile
+# Task runner for Talos Kubernetes cluster management with SOPS encryption
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+sops_env_name := "talos-cluster-edatw-lab"
+sops_age_key_file := env("HOME") / ".config/sops/age" / sops_env_name + ".txt"
+
+tfvars_enc := "terraform.tfvars.enc"
+tfvars_plain := "terraform.tfvars"
+tfvars_example := "terraform.tfvars.example"
+backend_hcl := "backend.hcl"
+backend_enc := "backend.hcl.enc"
+backend_example := "backend.hcl.example"
+default_editor := env("EDITOR", "vim")
+
+generated_dir := "generated"
+talosconfig := generated_dir / "talosconfig"
+kubeconfig := generated_dir / "kubeconfig"
+talos_wait_timeout := "10m"
+
+cilium_namespace := "kube-system"
+cilium_version := "1.19.4"
+cilium_values := generated_dir / "cilium-values.yaml"
+# PodSecurity labels for the connectivity-test namespaces. Talos enforces
+# 'baseline' outside kube-system, but the test pods need hostNetwork/hostPort/NET_RAW.
+cilium_test_psa_labels := "pod-security.kubernetes.io/enforce=privileged,pod-security.kubernetes.io/warn=privileged,pod-security.kubernetes.io/audit=privileged"
+
+# ============================================================================
+# Default & Help
+# ============================================================================
+
+[doc("Show available recipes")]
+default:
+    @just --list --unsorted
+
+# ============================================================================
+# Terraform Core
+# ============================================================================
+
+[doc("Initialize Terraform with encrypted backend")]
+terraform-init:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "==> Initializing Terraform"
+    if [ -f "{{ backend_enc }}" ]; then
+        echo "==> Using encrypted backend: {{ backend_enc }}"
+        SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops exec-file "{{ backend_enc }}" \
+            'terraform init -backend-config={}'
+    elif [ -f "{{ backend_hcl }}" ]; then
+        echo "==> Using plaintext backend: {{ backend_hcl }}"
+        terraform init -backend-config="{{ backend_hcl }}"
+    else
+        echo "==> No backend config, using local state"
+        terraform init
+    fi
+
+[doc("Generate Terraform execution plan")]
+terraform-plan: (_tf-with-vars "plan")
+
+[doc("Generate cluster configurations (--yes true skips approval prompt)")]
+[arg('yes', long)]
+terraform-apply yes="": (_tf-with-vars "apply" if yes == "true" { "-auto-approve" } else { "" })
+    @echo "✓ Configurations generated in {{ generated_dir }}/"
+    @echo ""
+    @echo "Next steps:"
+    @echo "  1. just talos-apply          # Apply configs to nodes"
+    @echo "  2. just talos-bootstrap      # Bootstrap Kubernetes cluster"
+    @echo "  3. just talos-health         # Check cluster health"
+
+[confirm("This will destroy infrastructure. Continue?")]
+[doc("Destroy Terraform-managed infrastructure")]
+terraform-destroy: (_tf-with-vars "destroy")
+
+[doc("Validate Terraform configuration")]
+terraform-validate:
+    terraform validate
+
+[doc("Format Terraform files")]
+terraform-fmt:
+    terraform fmt -recursive
+
+[doc("Show Terraform outputs")]
+terraform-output:
+    terraform output
+
+[doc("Upgrade Terraform providers")]
+terraform-upgrade:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f "{{ backend_enc }}" ]; then
+        SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops exec-file "{{ backend_enc }}" \
+            'terraform init -upgrade -backend-config={}'
+    else
+        terraform init -upgrade
+    fi
+
+# Internal: run terraform command with encrypted tfvars
+[private]
+_tf-with-vars cmd extra_args="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f "{{ tfvars_enc }}" ]; then
+        SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops exec-file "{{ tfvars_enc }}" \
+            'terraform {{ cmd }} {{ extra_args }} -var-file={}'
+    elif [ -f "{{ tfvars_plain }}" ]; then
+        terraform {{ cmd }} {{ extra_args }} -var-file="{{ tfvars_plain }}"
+    else
+        terraform {{ cmd }} {{ extra_args }}
+    fi
+
+# ============================================================================
+# SOPS Encryption
+# ============================================================================
+
+[doc("Encrypt terraform.tfvars")]
+sops-encrypt-tfvars:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{ tfvars_plain }}" ]; then
+        echo "Error: {{ tfvars_plain }} not found"
+        [ -f "{{ tfvars_example }}" ] && echo "Create from example: cp {{ tfvars_example }} {{ tfvars_plain }}"
+        exit 1
+    fi
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -e "{{ tfvars_plain }}" > "{{ tfvars_enc }}"
+    echo "✓ Encrypted to {{ tfvars_enc }}"
+    echo "Next: rm {{ tfvars_plain }}"
+
+[doc("Encrypt backend.hcl")]
+sops-encrypt-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{ backend_hcl }}" ]; then
+        echo "Error: {{ backend_hcl }} not found"
+        [ -f "{{ backend_example }}" ] && echo "Create from example: cp {{ backend_example }} {{ backend_hcl }}"
+        exit 1
+    fi
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -e "{{ backend_hcl }}" > "{{ backend_enc }}"
+    echo "✓ Encrypted to {{ backend_enc }}"
+    echo "Next: rm {{ backend_hcl }}"
+
+[doc("Edit encrypted terraform.tfvars in-place (--editor 'zed --wait')")]
+[arg('editor', long)]
+sops-edit-tfvars editor=default_editor:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export EDITOR="{{ editor }}"
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops "{{ tfvars_enc }}"
+
+[doc("Edit encrypted backend.hcl in-place (--editor 'zed --wait')")]
+[arg('editor', long)]
+sops-edit-backend editor=default_editor:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export EDITOR="{{ editor }}"
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops "{{ backend_enc }}"
+
+[doc("Update .sops.yaml with the current age public key")]
+sops-update-key:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{ sops_age_key_file }}" ]; then
+        echo "Error: Key file not found: {{ sops_age_key_file }}"
+        echo "Run: age-keygen -o {{ sops_age_key_file }}"
+        exit 1
+    fi
+    pubkey=$(age-keygen -y "{{ sops_age_key_file }}")
+    sed -i '' "s|age: age1.*|age: ${pubkey}|g" .sops.yaml
+    sed -i '' "s|# Key: .*|# Key: {{ sops_age_key_file }}|" .sops.yaml
+    echo "✓ Updated .sops.yaml with key: ${pubkey}"
+
+[doc("Show SOPS key info")]
+sops-info:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Environment: {{ sops_env_name }}"
+    echo "Key file:    {{ sops_age_key_file }}"
+    echo ""
+    if [ -f "{{ sops_age_key_file }}" ]; then
+        echo "Public key:"
+        age-keygen -y "{{ sops_age_key_file }}"
+    else
+        echo "Key not found. Run: age-keygen -o {{ sops_age_key_file }}"
+    fi
+
+[doc("Validate encrypted files can be decrypted")]
+sops-validate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    failed=0
+    for file in "{{ backend_enc }}" "{{ tfvars_enc }}"; do
+        if [ -f "$file" ]; then
+            if SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "$file" > /dev/null 2>&1; then
+                echo "  [OK] $file"
+            else
+                echo "  [FAIL] $file"
+                failed=$((failed + 1))
+            fi
+        fi
+    done
+    [ "$failed" -gt 0 ] && exit 1 || echo "All files valid"
+
+# ============================================================================
+# Talos Cluster Deployment
+# ============================================================================
+
+[doc("Apply Talos configs to nodes (--node <name> --insecure true --mode auto|reboot|no-reboot|staged)")]
+[arg('node', long)]
+[arg('insecure', long)]
+[arg('mode', long)]
+talos-apply node="" insecure="" mode="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -d "{{ generated_dir }}" ] || [ ! -f "{{ talosconfig }}" ]; then
+        echo "Error: Configs not generated. Run 'just apply' first."
+        exit 1
+    fi
+    export TALOSCONFIG="{{ talosconfig }}"
+    INSECURE_FLAG=""
+    MODE_FLAG=""
+    [ "{{ insecure }}" = "true" ] && INSECURE_FLAG="--insecure"
+    [ -n "{{ mode }}" ] && MODE_FLAG="--mode={{ mode }}"
+
+    if [ -n "{{ node }}" ]; then
+        # Single node
+        if [ -f "{{ generated_dir }}/control-plane-{{ node }}.yaml" ]; then
+            NODE_TYPE="control-plane"
+        elif [ -f "{{ generated_dir }}/worker-{{ node }}.yaml" ]; then
+            NODE_TYPE="worker"
+        else
+            echo "Error: No config for node '{{ node }}'"
+            ls -1 {{ generated_dir }}/*-*.yaml 2>/dev/null | grep -E '(control-plane|worker)-[^-]+\.yaml$' | sed 's/.*\/\(control-plane\|worker\)-\(.*\)\.yaml/  \2/' | sort -u
+            exit 1
+        fi
+        BASE_CONFIG="{{ generated_dir }}/${NODE_TYPE}-{{ node }}.yaml"
+        OUTPUT_KEY=$(echo "$NODE_TYPE" | sed 's/-/_/g')
+        NODE_IP=$(terraform output -json generated_configs 2>/dev/null | jq -r ".[\"${OUTPUT_KEY}\"][\"{{ node }}\"].physical_ip // \"\"" || echo "")
+        if [ -z "$NODE_IP" ] || [ "$NODE_IP" = "null" ]; then
+            read -p "Enter node IP address: " NODE_IP
+        fi
+        PATCH_ARGS=""
+        for patch in $(find {{ generated_dir }} -name "${NODE_TYPE}-{{ node }}-*.yaml" | sort); do
+            PATCH_ARGS="$PATCH_ARGS --config-patch @$patch"
+        done
+        echo "==> Applying to {{ node }} ($NODE_IP)"
+        talosctl apply-config $INSECURE_FLAG $MODE_FLAG --nodes $NODE_IP --endpoints $NODE_IP \
+            --file $BASE_CONFIG $PATCH_ARGS
+        echo "✓ Applied to {{ node }}"
+    else
+        # All nodes
+        for config in {{ generated_dir }}/control-plane-*.yaml; do
+            [ -f "$config" ] || continue
+            BASE_NAME=$(basename "$config")
+            echo "$BASE_NAME" | grep -q '^control-plane-[^-]\+\.yaml$' || continue
+            NODE_NAME=$(echo "$BASE_NAME" | sed 's/control-plane-\(.*\)\.yaml/\1/')
+            NODE_IP=$(terraform output -json generated_configs 2>/dev/null | jq -r ".control_plane[\"$NODE_NAME\"].physical_ip // \"\"" || echo "")
+            [ -z "$NODE_IP" ] || [ "$NODE_IP" = "null" ] && continue
+            PATCH_ARGS=""
+            for patch in $(find {{ generated_dir }} -name "control-plane-${NODE_NAME}-*.yaml" | sort); do
+                PATCH_ARGS="$PATCH_ARGS --config-patch @$patch"
+            done
+            echo "==> Applying to control plane $NODE_NAME ($NODE_IP)"
+            talosctl apply-config $INSECURE_FLAG $MODE_FLAG --nodes $NODE_IP --endpoints $NODE_IP \
+                --file "$config" $PATCH_ARGS && echo "✓ $NODE_NAME" || echo "✗ $NODE_NAME"
+        done
+        for config in {{ generated_dir }}/worker-*.yaml; do
+            [ -f "$config" ] || continue
+            BASE_NAME=$(basename "$config")
+            echo "$BASE_NAME" | grep -q '^worker-[^-]\+\.yaml$' || continue
+            NODE_NAME=$(echo "$BASE_NAME" | sed 's/worker-\(.*\)\.yaml/\1/')
+            NODE_IP=$(terraform output -json generated_configs 2>/dev/null | jq -r ".worker[\"$NODE_NAME\"].physical_ip // \"\"" || echo "")
+            [ -z "$NODE_IP" ] || [ "$NODE_IP" = "null" ] && continue
+            PATCH_ARGS=""
+            for patch in $(find {{ generated_dir }} -name "worker-${NODE_NAME}-*.yaml" | sort); do
+                PATCH_ARGS="$PATCH_ARGS --config-patch @$patch"
+            done
+            echo "==> Applying to worker $NODE_NAME ($NODE_IP)"
+            talosctl apply-config $INSECURE_FLAG $MODE_FLAG --nodes $NODE_IP --endpoints $NODE_IP \
+                --file "$config" $PATCH_ARGS && echo "✓ $NODE_NAME" || echo "✗ $NODE_NAME"
+        done
+        echo "✓ All configurations applied"
+    fi
+
+[doc("Bootstrap Kubernetes cluster (--node <ip> optional)")]
+[arg('node', long)]
+talos-bootstrap node="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export TALOSCONFIG="{{ talosconfig }}"
+    if [ -n "{{ node }}" ]; then
+        BOOTSTRAP_NODE="{{ node }}"
+    else
+        FIRST_CP=$(terraform output -json generated_configs 2>/dev/null | jq -r '.control_plane | keys[0]' || echo "")
+        BOOTSTRAP_NODE=$(terraform output -json generated_configs 2>/dev/null | jq -r ".control_plane[\"$FIRST_CP\"].physical_ip // \"\"" || echo "")
+        if [ -z "$BOOTSTRAP_NODE" ] || [ "$BOOTSTRAP_NODE" = "null" ]; then
+            echo "Error: Could not determine bootstrap node. Specify: just talos-bootstrap --node <ip>"
+            exit 1
+        fi
+        echo "==> Using control plane: $FIRST_CP ($BOOTSTRAP_NODE)"
+    fi
+    echo "Bootstrapping cluster on $BOOTSTRAP_NODE..."
+    talosctl bootstrap --nodes $BOOTSTRAP_NODE --endpoints $BOOTSTRAP_NODE
+    echo "✓ Cluster bootstrapped"
+
+# ============================================================================
+# Talos Cluster Access
+# ============================================================================
+
+[doc("Retrieve kubeconfig (--node <ip> optional)")]
+[arg('node', long)]
+talos-kubeconfig node="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export TALOSCONFIG="{{ talosconfig }}"
+    if [ -n "{{ node }}" ]; then
+        TARGET="{{ node }}"
+    else
+        FIRST_CP=$(terraform output -json generated_configs 2>/dev/null | jq -r '.control_plane | keys[0]' || echo "")
+        TARGET=$(terraform output -json generated_configs 2>/dev/null | jq -r ".control_plane[\"$FIRST_CP\"].physical_ip // \"\"" || echo "")
+        [ -z "$TARGET" ] || [ "$TARGET" = "null" ] && { echo "Error: specify node=<ip>"; exit 1; }
+    fi
+    mkdir -p "$(dirname {{ kubeconfig }})"
+    talosctl kubeconfig --nodes $TARGET --endpoints $TARGET --force {{ kubeconfig }}
+    echo "✓ Kubeconfig saved"
+    echo "export KUBECONFIG=$(pwd)/{{ kubeconfig }}"
+
+[doc("Show environment exports")]
+talos-env: talos-kubeconfig
+    @echo "export TALOSCONFIG=$(pwd)/{{ talosconfig }}"
+
+# ============================================================================
+# Talos Cluster Status
+# ============================================================================
+
+[doc("Check cluster health")]
+talos-health:
+    TALOSCONFIG="{{ talosconfig }}" talosctl health --wait-timeout={{ talos_wait_timeout }}
+
+[doc("List cluster nodes")]
+talos-nodes:
+    KUBECONFIG="{{ kubeconfig }}" kubectl get nodes -o wide
+
+[doc("List all pods")]
+talos-pods:
+    KUBECONFIG="{{ kubeconfig }}" kubectl get pods -A
+
+[doc("Complete cluster status")]
+talos-status: talos-health talos-nodes talos-pods
+
+# ============================================================================
+# Cilium CNI
+# ============================================================================
+
+[doc("Install/upgrade Cilium CNI via Helm (--namespace <ns> --version <ver>; uses generated cilium-values.yaml)")]
+[arg('namespace', long)]
+[arg('version', long)]
+cilium-install namespace=cilium_namespace version=cilium_version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{ cilium_values }}" ]; then
+        echo "Error: {{ cilium_values }} not found. Run 'just terraform-apply' first."
+        exit 1
+    fi
+    helm repo add cilium https://helm.cilium.io/ >/dev/null 2>&1 || true
+    helm repo update cilium >/dev/null
+    KUBECONFIG="{{ kubeconfig }}" helm upgrade --install cilium cilium/cilium \
+        --namespace {{ namespace }} \
+        --version {{ version }} \
+        --values "{{ cilium_values }}" \
+        --wait
+    echo "✓ Cilium {{ version }} applied to {{ namespace }}"
+
+[doc("Show Cilium status")]
+cilium-status:
+    KUBECONFIG="{{ kubeconfig }}" cilium status --wait
+
+[doc("Run Cilium connectivity test (auto-labels test namespaces privileged for PodSecurity)")]
+cilium-test:
+    KUBECONFIG="{{ kubeconfig }}" cilium connectivity test --namespace-labels '{{ cilium_test_psa_labels }}'
+
+[doc("Clean up Cilium connectivity test artifacts (namespaces, deployments, services)")]
+cilium-test-cleanup:
+    KUBECONFIG="{{ kubeconfig }}" cilium connectivity test --cleanup
+
+# ============================================================================
+# Talos Maintenance
+# ============================================================================
+
+[doc("Upgrade Kubernetes version (--version <ver>)")]
+[arg('version', long)]
+talos-upgrade-k8s version:
+    TALOSCONFIG="{{ talosconfig }}" talosctl upgrade-k8s --to {{ version }}
+
+[doc("Upgrade Talos on a node (--node <ip> --image <url>)")]
+[arg('node', long)]
+[arg('image', long)]
+talos-upgrade node image:
+    TALOSCONFIG="{{ talosconfig }}" talosctl upgrade --nodes {{ node }} --image {{ image }} --preserve
+
+[doc("Open Talos dashboard (--node <ip> [--insecure true])")]
+[arg('node', long)]
+[arg('insecure', long)]
+talos-dashboard node insecure="":
+    TALOSCONFIG="{{ talosconfig }}" talosctl {{ if insecure == "true" { "--insecure" } else { "" } }} -n {{ node }} dashboard
+
+[doc("View node service logs (--node <ip> --service <svc> [--insecure true])")]
+[arg('node', long)]
+[arg('service', long)]
+[arg('insecure', long)]
+talos-logs node service insecure="":
+    TALOSCONFIG="{{ talosconfig }}" talosctl {{ if insecure == "true" { "--insecure" } else { "" } }} -n {{ node }} logs {{ service }}
+
+[confirm("This will WIPE the node. Continue?")]
+[doc("Reset a Talos node (--node <ip> [--insecure true])")]
+[arg('node', long)]
+[arg('insecure', long)]
+talos-reset node insecure="":
+    TALOSCONFIG="{{ talosconfig }}" talosctl {{ if insecure == "true" { "--insecure" } else { "" } }} -n {{ node }} reset --graceful=false --reboot
+
+[doc("Reboot a Talos node (--node <ip> [--insecure true])")]
+[arg('node', long)]
+[arg('insecure', long)]
+talos-reboot node insecure="":
+    TALOSCONFIG="{{ talosconfig }}" talosctl {{ if insecure == "true" { "--insecure" } else { "" } }} -n {{ node }} reboot
+
+# ============================================================================
+# Workflow
+# ============================================================================
+
+[doc("Complete cluster setup: init → apply → talos-apply → bootstrap → health")]
+all: terraform-init terraform-apply (talos-apply "" "true" "") talos-bootstrap talos-health
+    @echo ""
+    @echo "Cluster deployment complete!"
+    @echo "  export TALOSCONFIG=$(pwd)/{{ talosconfig }}"
+    @echo "  export KUBECONFIG=$(pwd)/{{ kubeconfig }}"
+
+[doc("Remove generated files and Terraform state")]
+clean:
+    rm -rf {{ generated_dir }} .terraform .terraform.lock.hcl
+    rm -f terraform.tfstate terraform.tfstate.backup
+    @echo "✓ Clean complete"
+
+[doc("Show setup workflow")]
+workflow:
+    @echo ""
+    @echo "SOPS + Terraform Setup Workflow"
+    @echo "==============================="
+    @echo ""
+    @echo "1. Configure variables:"
+    @echo "   cp {{ tfvars_example }} {{ tfvars_plain }}"
+    @echo "   # Edit {{ tfvars_plain }}"
+    @echo "   just sops-encrypt-tfvars && rm {{ tfvars_plain }}"
+    @echo ""
+    @echo "2. Configure backend:"
+    @echo "   cp {{ backend_example }} {{ backend_hcl }}"
+    @echo "   # Edit {{ backend_hcl }}"
+    @echo "   just sops-encrypt-backend && rm {{ backend_hcl }}"
+    @echo ""
+    @echo "3. Deploy:"
+    @echo "   just terraform-init"
+    @echo "   just terraform-apply"
+    @echo "   just talos-apply --insecure true"
+    @echo "   just talos-bootstrap"
+    @echo "   just talos-health"

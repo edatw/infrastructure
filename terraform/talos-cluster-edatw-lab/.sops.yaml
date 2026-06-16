@@ -1,0 +1,16 @@
+# Local SOPS configuration for edatw-cluster environment
+# Key: /Users/shangkuei/.config/sops/age/talos-cluster-edatw.txt
+creation_rules:
+  # Match input files for encryption (terraform.tfvars -> terraform.tfvars.enc)
+  - path_regex: .*\.tfvars$
+    age: age17xtaj6jem6ak7etryhxyrv5qp792ewmgg66w42azdetxsxnrk5js9k90nz
+
+  - path_regex: .*\.tfvars\.enc$
+    age: age17xtaj6jem6ak7etryhxyrv5qp792ewmgg66w42azdetxsxnrk5js9k90nz
+
+  # Match backend configuration files (backend.hcl -> backend.hcl.enc)
+  - path_regex: backend\.hcl$
+    age: age17xtaj6jem6ak7etryhxyrv5qp792ewmgg66w42azdetxsxnrk5js9k90nz
+
+  - path_regex: backend\.hcl\.enc$
+    age: age17xtaj6jem6ak7etryhxyrv5qp792ewmgg66w42azdetxsxnrk5js9k90nz

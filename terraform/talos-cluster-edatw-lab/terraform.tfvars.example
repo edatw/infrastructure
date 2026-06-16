@@ -1,0 +1,148 @@
+# EDATW Cluster - Example Configuration
+#
+# Copy this file to terraform.tfvars and update with your values:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Then encrypt before committing:
+#   make tf-encrypt-tfvars
+#
+# IMPORTANT: Never commit unencrypted terraform.tfvars!
+
+# =============================================================================
+# Cluster Configuration
+# =============================================================================
+
+cluster_name = "edatw"
+
+# Leave empty to use KubePrism (recommended for single-node or HA clusters)
+# cluster_endpoint = "https://100.64.0.10:6443"
+
+# =============================================================================
+# Control Plane Nodes
+# =============================================================================
+
+control_plane_nodes = {
+  cp-01 = {
+    # Tailscale IP will be assigned when node joins the network
+    # Use "auto-assigned" during initial setup, then update after bootstrap
+    tailscale_ipv4 = "auto-assigned"
+
+    # Physical IP for initial bootstrapping (before Tailscale is active)
+    physical_ip = "192.168.1.100"
+
+    # Installation disk (run: talosctl get disks)
+    install_disk = "/dev/sda"
+
+    # Hostname (used for Tailscale MagicDNS)
+    hostname = "edatw-cp-01"
+
+    # Talos system extensions to install
+    extensions = ["siderolabs/tailscale"]
+
+    # Kubernetes topology labels (optional)
+    # region = "home"
+    # zone   = "rack-1"
+    # arch   = "amd64"
+  }
+}
+
+# =============================================================================
+# Worker Nodes
+# =============================================================================
+
+# For a single-node cluster, leave worker_nodes empty
+worker_nodes = {}
+
+# Example worker node configuration:
+# worker_nodes = {
+#   worker-01 = {
+#     tailscale_ipv4 = "auto-assigned"
+#     physical_ip    = "192.168.1.101"
+#     install_disk   = "/dev/sda"
+#     hostname       = "edatw-worker-01"
+#     extensions     = ["siderolabs/tailscale"]
+#
+#     # ZFS storage (requires siderolabs/zfs extension)
+#     # zfs_pools = [
+#     #   {
+#     #     name  = "zpool"
+#     #     disks = ["/dev/sdb"]
+#     #     type  = ""
+#     #   }
+#     # ]
+#   }
+# }
+
+# =============================================================================
+# Tailscale Configuration
+# =============================================================================
+
+tailscale_tailnet  = "your-tailnet-name"
+tailscale_auth_key = "tskey-auth-xxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# =============================================================================
+# Version Configuration
+# =============================================================================
+
+talos_version      = "v1.8.0"
+kubernetes_version = "v1.31.0"
+
+# =============================================================================
+# Network Configuration
+# =============================================================================
+
+cni_name = "cilium"
+
+cilium_helm_values = {
+  operator = {
+    replicas = 1
+  }
+  hubble = {
+    enabled = true
+    relay = {
+      enabled = true
+    }
+    ui = {
+      enabled = true
+    }
+  }
+  bpf = {
+    masquerade = false
+  }
+  ipam = {
+    mode = "kubernetes"
+  }
+  ipv6 = {
+    enabled = false
+  }
+  k8sServiceHost       = "localhost"
+  k8sServicePort       = 7445
+  kubeProxyReplacement = "true"
+  securityContext = {
+    capabilities = {
+      ciliumAgent      = ["CHOWN", "KILL", "NET_ADMIN", "NET_RAW", "IPC_LOCK", "SYS_ADMIN", "SYS_RESOURCE", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"]
+      cleanCiliumState = ["NET_ADMIN", "SYS_ADMIN", "SYS_RESOURCE"]
+    }
+  }
+  cgroup = {
+    autoMount = {
+      enabled = false
+    }
+    hostRoot = "/sys/fs/cgroup"
+  }
+  gatewayAPI = {
+    enabled           = true
+    enableAlpn        = true
+    enableAppProtocol = true
+  }
+}
+
+# =============================================================================
+# Machine Configuration
+# =============================================================================
+
+enable_kubeprism                = true
+kubeprism_port                  = 7445
+use_dhcp_for_physical_interface = true
+wipe_install_disk               = false
+openebs_hostpath_enabled        = false
