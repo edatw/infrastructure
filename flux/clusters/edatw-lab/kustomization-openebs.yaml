@@ -1,0 +1,47 @@
+---
+# Flux Kustomization for OpenEBS Storage
+# Provides dynamic local storage provisioning for the cluster
+# This cluster enables ZFS LocalPV and Mayastor via overlay
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: openebs
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 10m
+  prune: true
+  wait: true
+
+  sourceRef:
+    kind: GitRepository
+    name: shangkuei-infrastructure
+    namespace: flux-system
+
+  path: ./kubernetes/base/openebs
+
+  # edatw-lab delta: pin the chart version, overriding the version carried by the
+  # remote base's HelmRelease (release.version is kept in sync). Bumped to latest
+  # stable by `just bump-openebs`.
+  # (No ServiceMonitor patch: hostpath-only OpenEBS renders no ServiceMonitor.)
+  patches:
+    - target:
+        kind: HelmRelease
+        name: openebs
+      patch: |-
+        - op: replace
+          path: /spec/chart/spec/version
+          value: "4.5.0"
+        - op: replace
+          path: /spec/values/release/version
+          value: "4.5.0"
+
+  # Dependencies: CNI must be ready for pod networking
+  dependsOn:
+    - name: cilium
+
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: openebs-localpv-provisioner
+      namespace: openebs

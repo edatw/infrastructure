@@ -1,0 +1,43 @@
+---
+# Flux Kustomization for Snapshot Controller
+# Provides volume snapshot functionality for CSI drivers
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: snapshot-controller
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 10m
+  prune: true
+  wait: true
+
+  sourceRef:
+    kind: GitRepository
+    name: shangkuei-infrastructure
+    namespace: flux-system
+
+  path: ./kubernetes/base/snapshot-controller
+
+  # edatw-lab delta: pin the upstream external-snapshotter version, overriding the
+  # tag carried by the remote base's GitRepository. Bumped to latest stable by
+  # `just bump-snapshot-controller`.
+  # (No ServiceMonitor patch: these are raw upstream manifests, no ServiceMonitor.)
+  patches:
+    - target:
+        kind: GitRepository
+        name: snapshot-controller
+      patch: |-
+        - op: replace
+          path: /spec/ref/tag
+          value: "v8.6.0"
+
+  # Dependencies: Should be deployed after CSI drivers
+  dependsOn:
+    - name: cilium
+
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: snapshot-controller
+      namespace: kube-system

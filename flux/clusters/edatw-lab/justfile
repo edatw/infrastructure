@@ -56,7 +56,7 @@ flux-resume name="flux-system":
 # Bump every component version pin to latest upstream stable. Each component has
 # its own recipe below so they can be bumped independently; this runs them all.
 [doc("Bump all component version pins to latest stable")]
-bump-versions: bump-cert-manager bump-cilium bump-flux bump-flux-operator bump-gateway-api
+bump-versions: bump-cert-manager bump-cilium bump-csi-driver-smb bump-flux bump-flux-operator bump-gateway-api bump-openebs bump-snapshot-controller
 
 # Cilium chart version, patched onto the remote base in kustomization-cilium.yaml
 # (and the documented pin in README.md). The Talos side pins it independently.
@@ -138,6 +138,49 @@ bump-flux:
     echo "==> Updated kustomization-flux-instance.yaml"
     echo "NOTE: keep the Terraform bootstrap pin in sync:"
     echo "  - terraform/gitops-edatw-lab  flux_version = \"$fx\"  (just gitops-bump)"
+
+# OpenEBS chart version, patched onto the remote base's HelmRelease in
+# kustomization-openebs.yaml (chart + release.version values kept in sync).
+[doc("Bump the OpenEBS chart version pin to latest stable")]
+bump-openebs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The OpenEBS chart version drops the leading v.
+    oe=$(gh api repos/openebs/openebs/releases/latest --jq .tag_name)
+    oe="${oe#v}"
+    echo "==> OpenEBS chart: $oe"
+    # Replace the value following each patch path (anchored so only these pins change).
+    OE="$oe" perl -0777 -pi -e 's{(path: /spec/chart/spec/version\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{OE}"}' kustomization-openebs.yaml
+    OE="$oe" perl -0777 -pi -e 's{(path: /spec/values/release/version\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{OE}"}' kustomization-openebs.yaml
+    echo "==> Updated kustomization-openebs.yaml"
+
+# SMB CSI driver chart version, patched onto the remote base's HelmRelease in
+# kustomization-csi-driver-smb.yaml (the base ships a floating range).
+[doc("Bump the csi-driver-smb chart version pin to latest stable")]
+bump-csi-driver-smb:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The csi-driver-smb chart version drops the leading v.
+    smb=$(gh api repos/kubernetes-csi/csi-driver-smb/releases/latest --jq .tag_name)
+    smb="${smb#v}"
+    echo "==> csi-driver-smb chart: $smb"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    SMB="$smb" perl -0777 -pi -e 's{(path: /spec/chart/spec/version\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{SMB}"}' kustomization-csi-driver-smb.yaml
+    echo "==> Updated kustomization-csi-driver-smb.yaml"
+
+# external-snapshotter version, patched onto the remote base's GitRepository tag
+# in kustomization-snapshot-controller.yaml.
+[doc("Bump the snapshot-controller version pin to latest stable")]
+bump-snapshot-controller:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The GitRepository pins a git tag, which keeps the leading v.
+    sc=$(gh api repos/kubernetes-csi/external-snapshotter/releases/latest --jq .tag_name)
+    sc="v${sc#v}"
+    echo "==> external-snapshotter: $sc"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    SC="$sc" perl -0777 -pi -e 's{(path: /spec/ref/tag\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{SC}"}' kustomization-snapshot-controller.yaml
+    echo "==> Updated kustomization-snapshot-controller.yaml"
 
 # ============================================================================
 # SOPS Secret Management (encrypted with the Flux age key)

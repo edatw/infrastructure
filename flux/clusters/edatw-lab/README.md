@@ -44,9 +44,15 @@ gateway-api → cilium / cert-manager → openebs / csi-driver-smb / snapshot-co
 ## edatw-lab deltas (applied via Flux `spec.patches`, not local copies)
 
 - **cilium** — `MTU: 1230` (VXLAN over Tailscale) + chart `1.19.5` (patch on the remote base).
-- **openebs** — remote base already defaults to LocalPV **hostpath**; no patch needed.
+- **openebs** — remote base already defaults to LocalPV **hostpath**; chart pinned `4.5.0` (overrides the base pin; `release.version` kept in sync).
+- **csi-driver-smb** — chart pinned `1.20.1` (the remote base ships a floating `>=1.0.0` range).
+- **snapshot-controller** — external-snapshotter pinned `v8.6.0` (GitRepository tag on the remote base).
 - **flux-instance** — kept local; sync URL `github.com/edatw/infrastructure`, path `flux/clusters/edatw-lab`.
 
+> ServiceMonitors are *not* disabled for the storage components (openebs,
+> csi-driver-smb, snapshot-controller): unlike cilium/cert-manager, those charts
+> render no ServiceMonitor, so there is nothing to patch off.
+>
 > **Pin discipline:** `gitrepository-shangkuei.yaml` is pinned to a commit (the
 > repo has no tags). Bump it deliberately after reviewing the upstream diff —
 > it is a *different owner* (a personal repo), so for production you'd vendor

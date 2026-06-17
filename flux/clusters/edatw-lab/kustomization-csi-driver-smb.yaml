@@ -1,0 +1,46 @@
+---
+# Flux Kustomization for SMB CSI Driver
+# Provides SMB/CIFS storage support for backup and snapshots
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: csi-driver-smb
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 10m
+  prune: true
+  wait: true
+
+  sourceRef:
+    kind: GitRepository
+    name: shangkuei-infrastructure
+    namespace: flux-system
+
+  path: ./kubernetes/base/csi-driver-smb
+
+  # edatw-lab delta: pin the chart version, overriding the floating ">=1.0.0"
+  # range carried by the remote base's HelmRelease. Bumped to latest stable by
+  # `just bump-csi-driver-smb`.
+  # (No ServiceMonitor patch: this chart ships no ServiceMonitor template.)
+  patches:
+    - target:
+        kind: HelmRelease
+        name: csi-driver-smb
+      patch: |-
+        - op: replace
+          path: /spec/chart/spec/version
+          value: "1.20.1"
+
+  # Dependencies: CNI must be ready for pod networking
+  dependsOn:
+    - name: cilium
+
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: csi-smb-controller
+      namespace: kube-system
+    - apiVersion: storage.k8s.io/v1
+      kind: CSIDriver
+      name: smb.csi.k8s.io

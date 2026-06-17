@@ -38,9 +38,9 @@ resources:
   - kustomization-cert-manager.yaml
 
   # Storage provisioners (depend on CNI)
-  # - kustomization-openebs.yaml
-  # - kustomization-csi-driver-smb.yaml
-  # - kustomization-snapshot-controller.yaml
+  - kustomization-openebs.yaml
+  - kustomization-csi-driver-smb.yaml
+  - kustomization-snapshot-controller.yaml
 
   # Infrastructure applications (Flux Kustomization CRs)
   # Flux foundation (installed via Helm)
