@@ -48,6 +48,9 @@ spec:
         - op: replace
           path: /spec/values/hubble/metrics/serviceMonitor/enabled
           value: false
+        - op: replace
+          path: /spec/values/hubble/relay/prometheus/serviceMonitor/enabled
+          value: false
 
   # Dependencies: Gateway API CRDs required for Gateway API implementation
   # Requires both standard and experimental CRDs (TLSRoute)
