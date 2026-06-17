@@ -24,6 +24,10 @@ spec:
   #  - MTU 1230 for VXLAN tunnel over Tailscale (transport 1280 - 50B encap).
   #    Without it cross-node TLS/bulk traffic is dropped on tailscale0.
   #  - pin the chart to the version used by talos-cluster-edatw-lab.
+  #  - disable ServiceMonitors: the Prometheus Operator CRDs
+  #    (monitoring.coreos.com/v1) are not installed on edatw-lab, so the chart's
+  #    validate.yaml hard-fails the upgrade. Re-enable once a monitoring stack
+  #    with the ServiceMonitor CRD lands.
   patches:
     - target:
         kind: HelmRelease
@@ -35,6 +39,15 @@ spec:
         - op: replace
           path: /spec/chart/spec/version
           value: "1.19.5"
+        - op: replace
+          path: /spec/values/prometheus/serviceMonitor/enabled
+          value: false
+        - op: replace
+          path: /spec/values/operator/prometheus/serviceMonitor/enabled
+          value: false
+        - op: replace
+          path: /spec/values/hubble/metrics/serviceMonitor/enabled
+          value: false
 
   # Dependencies: Gateway API CRDs required for Gateway API implementation
   # Requires both standard and experimental CRDs (TLSRoute)

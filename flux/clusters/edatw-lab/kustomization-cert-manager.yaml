@@ -19,9 +19,13 @@ spec:
 
   path: ./kubernetes/base/cert-manager
 
-  # edatw-lab delta: pin the cert-manager chart version, overriding the version
-  # carried by the remote base's HelmRelease. Bumped to latest stable by
-  # `just bump-cert-manager`.
+  # edatw-lab deltas to the shared base (applied at the Flux layer):
+  #  - pin the cert-manager chart version, overriding the version carried by the
+  #    remote base's HelmRelease. Bumped to latest stable by `just bump-cert-manager`.
+  #  - disable the ServiceMonitor: the Prometheus Operator CRDs
+  #    (monitoring.coreos.com/v1) are not installed on edatw-lab, so the chart
+  #    fails to apply the ServiceMonitor. Re-enable once a monitoring stack
+  #    with the ServiceMonitor CRD lands.
   patches:
     - target:
         kind: HelmRelease
@@ -30,6 +34,9 @@ spec:
         - op: replace
           path: /spec/chart/spec/version
           value: "v1.20.2"
+        - op: replace
+          path: /spec/values/prometheus/servicemonitor/enabled
+          value: false
 
   # Dependencies: Gateway API CRDs must be available for HTTP01/TLS challenges
   # Requires standard CRDs (experimental TLSRoute not needed by cert-manager)
