@@ -18,7 +18,7 @@ import '../../makefiles/talos.just'
 cilium_namespace := "kube-system"
 # Fallback Cilium chart version, used only when fetching the latest stable fails
 # (cilium-install defaults to the latest stable from cilium's stable.txt).
-cilium_version := "1.19.4"
+cilium_version := "1.19.5"
 cilium_values := generated_dir / "cilium-values.yaml"
 # PodSecurity labels for the connectivity-test namespaces. Talos enforces
 # 'baseline' outside kube-system, but the test pods need hostNetwork/hostPort/NET_RAW.
@@ -67,6 +67,23 @@ cilium-test:
 [doc("Clean up Cilium connectivity test artifacts (namespaces, deployments, services)")]
 cilium-test-cleanup:
     KUBECONFIG="{{ kubeconfig }}" cilium connectivity test --cleanup
+
+[doc("Pin cilium_version (cilium-install fallback) to the latest stable Cilium release")]
+cilium-bump:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # stable.txt ships a leading v; the Helm chart version is unprefixed.
+    cil=$(curl -fsSL https://raw.githubusercontent.com/cilium/cilium/main/stable.txt | tr -d '[:space:]')
+    cil="${cil#v}"
+    if [[ ! "$cil" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "{{ _sops_red }}Error: could not determine latest stable version (got '$cil'){{ _sops_nc }}" >&2
+        exit 1
+    fi
+    CIL="$cil" perl -i -pe 's/^(cilium_version\s*:=\s*)"[^"]*"/$1"$ENV{CIL}"/' justfile
+    echo "{{ _sops_green }}==> cilium_version pinned to $cil{{ _sops_nc }}"
+    echo "    Review: git diff justfile"
+    echo "    Keep the Flux pin in sync:"
+    echo "      just --justfile ../../flux/clusters/edatw-lab/justfile bump-cilium"
 
 # ============================================================================
 # Gateway API
