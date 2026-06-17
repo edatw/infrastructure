@@ -16,6 +16,8 @@ import '../../makefiles/helm.just'
 import '../../makefiles/talos.just'
 
 cilium_namespace := "kube-system"
+# Fallback Cilium chart version, used only when fetching the latest stable fails
+# (cilium-install defaults to the latest stable from cilium's stable.txt).
 cilium_version := "1.19.4"
 cilium_values := generated_dir / "cilium-values.yaml"
 # PodSecurity labels for the connectivity-test namespaces. Talos enforces
@@ -34,10 +36,25 @@ default:
 # Cilium CNI
 # ============================================================================
 
-[doc("Install/upgrade Cilium CNI via shared helm-install (--namespace <ns> --version <ver>)")]
-[arg('namespace', long)]
-[arg('version', long)]
-cilium-install namespace=cilium_namespace version=cilium_version: (helm-install "cilium" cilium_values namespace version)
+[arg('namespace', long='namespace')]
+[arg('version', long='version')]
+[doc("Install/upgrade Cilium CNI (latest stable by default; --version <ver> to pin, --namespace <ns>)")]
+cilium-install namespace=cilium_namespace version="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    version="{{ version }}"
+    if [ -z "$version" ]; then
+        # Cilium's blessed latest-stable (what `cilium install` reads). Strip the v.
+        version=$(curl -fsSL https://raw.githubusercontent.com/cilium/cilium/main/stable.txt 2>/dev/null | tr -d '[:space:]' || true)
+        version="${version#v}"
+        if [ -z "$version" ]; then
+            version="{{ cilium_version }}"
+            echo "{{ _sops_yellow }}==> Could not fetch latest stable; using pinned {{ cilium_version }}{{ _sops_nc }}"
+        else
+            echo "{{ _sops_blue }}==> Latest stable Cilium: $version{{ _sops_nc }}"
+        fi
+    fi
+    just helm-install cilium "{{ cilium_values }}" "{{ namespace }}" "$version"
 
 [doc("Show Cilium status")]
 cilium-status:
