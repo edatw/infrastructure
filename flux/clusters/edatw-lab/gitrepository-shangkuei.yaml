@@ -5,8 +5,9 @@
 # repo -- the app Kustomizations source them from here and apply edatw-lab
 # deltas via spec.patches.
 #
-# Pinned to a commit (no tags exist upstream) so an upstream change cannot move
-# this cluster. Bump deliberately after reviewing the diff.
+# Tracks the upstream main branch (no tags exist upstream). This cluster follows
+# upstream changes automatically on each reconcile -- to freeze it against an
+# upstream change, add a `commit:` pin under ref alongside the branch.
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -18,4 +19,3 @@ spec:
   url: https://github.com/shangkuei/infrastructure.git
   ref:
     branch: main
-    commit: 1486aabe8391dae4a71bb2faafed055dd19e53c1
