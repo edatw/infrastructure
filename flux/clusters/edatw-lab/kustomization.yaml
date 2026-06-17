@@ -34,8 +34,8 @@ resources:
   # cluster is deployed. Uncomment each once its manifests land in the repo.
 
   # CNI and certificate management (depend on Gateway API)
-  # - kustomization-cilium.yaml
-  # - kustomization-cert-manager.yaml
+  - kustomization-cilium.yaml
+  - kustomization-cert-manager.yaml
 
   # Storage provisioners (depend on CNI)
   # - kustomization-openebs.yaml
@@ -44,8 +44,8 @@ resources:
 
   # Infrastructure applications (Flux Kustomization CRs)
   # Flux foundation (installed via Helm)
-  # - kustomization-flux-operator.yaml
-  # - kustomization-flux-instance.yaml
+  - kustomization-flux-operator.yaml
+  - kustomization-flux-instance.yaml
 
   # GitOps applications (installed via Helm)
   # - kustomization-argocd.yaml
