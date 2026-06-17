@@ -247,6 +247,61 @@ tf-refresh-token:
     echo "{{ _sops_green }}==> Rewrote kubernetes_token in {{ tf_tfvars_enc }} ({{ token_ttl }} TTL){{ _sops_nc }}"
 
 # ============================================================================
+# Component Version Bump
+# ============================================================================
+
+# Bump cert-manager, flux-operator, and flux to the latest stable upstream
+# releases (or pass explicit versions to pin). Updates the variable defaults in
+# variables.tf and rewrites the same pins into the encrypted tfvars so the next
+# `terraform apply` picks them up. Normalization: cert-manager and flux keep
+# their leading `v`; the flux-operator chart version drops it.
+#   just bump-versions                        # all three to latest stable
+#   just bump-versions v1.20.2 0.52.0 v2.8.8  # explicit pins
+[doc("Bump cert-manager/flux-operator/flux to latest (or pinned args) in variables.tf + encrypted tfvars")]
+bump-versions cert_manager="" flux_operator="" flux="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cm="{{ cert_manager }}"; fo="{{ flux_operator }}"; fx="{{ flux }}"
+    [ -n "$cm" ] || cm=$(gh api repos/cert-manager/cert-manager/releases/latest --jq .tag_name)
+    [ -n "$fo" ] || fo=$(gh api repos/controlplaneio-fluxcd/flux-operator/releases/latest --jq .tag_name)
+    [ -n "$fx" ] || fx=$(gh api repos/fluxcd/flux2/releases/latest --jq .tag_name)
+    # Normalize prefixes: cert-manager + flux keep the leading v; flux-operator drops it.
+    cm="v${cm#v}"; fx="v${fx#v}"; fo="${fo#v}"
+    echo "{{ _sops_blue }}==> Target versions{{ _sops_nc }}"
+    echo "    cert-manager:  $cm"
+    echo "    flux-operator: $fo"
+    echo "    flux:          $fx"
+    # 1. Update the variable defaults in variables.tf (scoped to each block).
+    update_default() {
+        NAME="$1" VAL="$2" perl -0777 -pi -e 's/(variable "\Q$ENV{NAME}\E"\s*\{[^}]*default\s*=\s*)"[^"]*"/$1"$ENV{VAL}"/s' variables.tf
+    }
+    update_default cert_manager_version "$cm"
+    update_default flux_operator_version "$fo"
+    update_default flux_version "$fx"
+    terraform fmt variables.tf >/dev/null
+    echo "{{ _sops_green }}==> Updated variable defaults in variables.tf{{ _sops_nc }}"
+    # 2. Rewrite the same pins into the encrypted tfvars (add the key if absent).
+    if [ ! -f "{{ tf_tfvars_enc }}" ]; then
+        echo "{{ _sops_red }}Error: {{ tf_tfvars_enc }} not found. Encrypt tfvars first: just tf-encrypt-tfvars{{ _sops_nc }}" >&2
+        exit 1
+    fi
+    trap 'rm -f "{{ tf_tfvars_plain }}"' EXIT
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "{{ tf_tfvars_enc }}" > "{{ tf_tfvars_plain }}"
+    set_tfvar() {
+        if grep -qE "^$1[[:space:]]*=" "{{ tf_tfvars_plain }}"; then
+            KEY="$1" VAL="$2" perl -i -pe 's/^(\Q$ENV{KEY}\E\s*=\s*)"[^"]*"/$1"$ENV{VAL}"/' "{{ tf_tfvars_plain }}"
+        else
+            printf '%s = "%s"\n' "$1" "$2" >> "{{ tf_tfvars_plain }}"
+        fi
+    }
+    set_tfvar cert_manager_version "$cm"
+    set_tfvar flux_operator_version "$fo"
+    set_tfvar flux_version "$fx"
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -e "{{ tf_tfvars_plain }}" > "{{ tf_tfvars_enc }}"
+    echo "{{ _sops_green }}==> Rewrote versions in {{ tf_tfvars_enc }}{{ _sops_nc }}"
+    echo "{{ _sops_yellow }}==> Review with: git diff variables.tf  (tfvars is encrypted){{ _sops_nc }}"
+
+# ============================================================================
 # Workflow
 # ============================================================================
 

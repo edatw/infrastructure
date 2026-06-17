@@ -97,7 +97,7 @@ variable "sops_age_key_path" {
 variable "cert_manager_version" {
   description = "Version of cert-manager Helm chart to install"
   type        = string
-  default     = "v1.19.1"
+  default     = "v1.20.2"
 }
 
 variable "cert_manager_dns01_recursive_nameservers" {
@@ -127,11 +127,11 @@ variable "cert_manager_enable_gateway_api" {
 variable "flux_operator_version" {
   description = "Version of the Flux Operator Helm chart to install"
   type        = string
-  default     = "0.33.0"
+  default     = "0.52.0"
 }
 
 variable "flux_version" {
   description = "Version of Flux controllers to deploy via FluxInstance"
   type        = string
-  default     = "v2.7.3"
+  default     = "v2.8.8"
 }
