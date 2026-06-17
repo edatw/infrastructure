@@ -139,7 +139,7 @@ No resources.
 | <a name="input_cert_manager_version"></a> [cert\_manager\_version](#input\_cert\_manager\_version) | Version of cert-manager Helm chart to install | `string` | `"v1.20.2"` | no |
 | <a name="input_cluster_name"></a> [cluster\_name](#input\_cluster\_name) | Name of the Kubernetes cluster | `string` | `"edatw-lab"` | no |
 | <a name="input_cluster_path"></a> [cluster\_path](#input\_cluster\_path) | Path in the repository where this cluster's Flux Kustomization root lives (repo-relative) | `string` | `"flux/clusters/edatw-lab"` | no |
-| <a name="input_flux_components_extra"></a> [flux\_components\_extra](#input\_flux\_components\_extra) | Extra Flux components to install (e.g., image-reflector-controller, image-automation-controller) | `list(string)` | `[]` | no |
+| <a name="input_flux_components_extra"></a> [flux\_components\_extra](#input\_flux\_components\_extra) | Extra Flux components to install beyond the core four. 'source-watcher' enables the ExternalArtifact feature gate required by ArtifactGenerator sources (e.g. the gateway-api Kustomizations). Other options: image-reflector-controller, image-automation-controller. | `list(string)` | <pre>[<br/>  "source-watcher"<br/>]</pre> | no |
 | <a name="input_flux_namespace"></a> [flux\_namespace](#input\_flux\_namespace) | Namespace where Flux controllers will be installed | `string` | `"flux-system"` | no |
 | <a name="input_flux_network_policy"></a> [flux\_network\_policy](#input\_flux\_network\_policy) | Enable network policies for Flux controllers | `bool` | `true` | no |
 | <a name="input_flux_operator_version"></a> [flux\_operator\_version](#input\_flux\_operator\_version) | Version of the Flux Operator Helm chart to install | `string` | `"0.52.0"` | no |

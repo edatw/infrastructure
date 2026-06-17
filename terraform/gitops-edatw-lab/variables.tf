@@ -79,9 +79,9 @@ variable "flux_network_policy" {
 }
 
 variable "flux_components_extra" {
-  description = "Extra Flux components to install (e.g., image-reflector-controller, image-automation-controller)"
+  description = "Extra Flux components to install beyond the core four. 'source-watcher' enables the ExternalArtifact feature gate required by ArtifactGenerator sources (e.g. the gateway-api Kustomizations). Other options: image-reflector-controller, image-automation-controller."
   type        = list(string)
-  default     = []
+  default     = ["source-watcher"]
 }
 
 variable "sops_age_key_path" {
