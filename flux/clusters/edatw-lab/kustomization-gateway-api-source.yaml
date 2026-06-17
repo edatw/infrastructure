@@ -21,3 +21,15 @@ spec:
     namespace: flux-system
 
   path: ./kubernetes/base/gateway-api
+
+  # edatw-lab delta: pin the upstream Gateway API CRD version, overriding the
+  # tag carried by the remote base's GitRepository. Bumped to latest stable by
+  # `just bump-versions`.
+  patches:
+    - target:
+        kind: GitRepository
+        name: gateway-api
+      patch: |-
+        - op: replace
+          path: /spec/ref/tag
+          value: "v1.5.1"

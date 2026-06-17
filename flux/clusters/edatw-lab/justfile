@@ -34,6 +34,48 @@ flux-logs:
     flux logs --level=info --all-namespaces
 
 # ============================================================================
+# Component Version Bump
+# ============================================================================
+
+# Bump every component version pin to latest upstream stable. Each component has
+# its own recipe below so they can be bumped independently; this runs them all.
+[doc("Bump all component version pins to latest stable")]
+bump-versions: bump-cilium bump-gateway-api
+
+# Cilium chart version, patched onto the remote base in kustomization-cilium.yaml
+# (and the documented pin in README.md). The Talos side pins it independently.
+[doc("Bump the Cilium chart version pin to latest stable")]
+bump-cilium:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # stable.txt ships a leading v; the Helm chart version is unprefixed.
+    cil=$(curl -fsSL https://raw.githubusercontent.com/cilium/cilium/main/stable.txt | tr -d '[:space:]')
+    cil="${cil#v}"
+    echo "==> Cilium chart: $cil"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    CIL="$cil" perl -0777 -pi -e 's{(path: /spec/chart/spec/version\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{CIL}"}' kustomization-cilium.yaml
+    CIL="$cil" perl -i -pe 's/(chart `)[^`]*(`)/$1$ENV{CIL}$2/' README.md
+    echo "==> Updated kustomization-cilium.yaml, README.md"
+    echo "NOTE: update the Talos pin to match:"
+    echo "  - terraform/talos-cluster-edatw-lab/justfile   cilium_version := \"$cil\""
+
+# Gateway API CRD version, patched onto the remote base's GitRepository in
+# kustomization-gateway-api-source.yaml. The Talos side pins it independently.
+[doc("Bump the Gateway API CRD version pin to latest stable")]
+bump-gateway-api:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The GitRepository pins a git tag, which keeps the leading v.
+    gw=$(gh api repos/kubernetes-sigs/gateway-api/releases/latest --jq .tag_name)
+    gw="v${gw#v}"
+    echo "==> Gateway API: $gw"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    GW="$gw" perl -0777 -pi -e 's{(path: /spec/ref/tag\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{GW}"}' kustomization-gateway-api-source.yaml
+    echo "==> Updated kustomization-gateway-api-source.yaml"
+    echo "NOTE: update the Talos pin to match:"
+    echo "  - terraform/modules/talos-cluster/main.tf      gateway_api_version = \"$gw\""
+
+# ============================================================================
 # SOPS Secret Management (encrypted with the Flux age key)
 # ============================================================================
 

@@ -43,7 +43,7 @@ gateway-api → cilium / cert-manager → openebs / csi-driver-smb / snapshot-co
 
 ## edatw-lab deltas (applied via Flux `spec.patches`, not local copies)
 
-- **cilium** — `MTU: 1230` (VXLAN over Tailscale) + chart `1.19.4` (patch on the remote base).
+- **cilium** — `MTU: 1230` (VXLAN over Tailscale) + chart `1.19.5` (patch on the remote base).
 - **openebs** — remote base already defaults to LocalPV **hostpath**; no patch needed.
 - **flux-instance** — kept local; sync URL `github.com/edatw/infrastructure`, path `flux/clusters/edatw-lab`.
 
