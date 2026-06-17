@@ -1,0 +1,39 @@
+# ArgoCD projects overlay - edatw-lab
+# Generates a dedicated ArgoCD KSOPS age key and the argocd/sops-age secret
+# (encrypted with the Flux age key so Flux can decrypt + deploy it to ArgoCD).
+# After generating, uncomment secret-sops-age.enc.yaml in kustomization.yaml.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+flux_age_key := env("HOME") / ".config/sops/age/edatw-lab-flux.txt"
+argocd_key := env("HOME") / ".config/sops/age/argocd-edatw-lab-ksops.txt"
+secret_file := "secret-sops-age.enc.yaml"
+
+[doc("List recipes")]
+default:
+    @just --list --unsorted
+
+[doc("Write .sops.yaml with the Flux age PUBLIC key")]
+sops-update-key:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -f "{{ flux_age_key }}" ] || { echo "Missing {{ flux_age_key }}"; exit 1; }
+    pub=$(age-keygen -y "{{ flux_age_key }}")
+    sed -i '' "s|age: age1.*|age: ${pub}|" .sops.yaml
+    echo "Updated .sops.yaml -> ${pub}"
+
+[doc("Generate the dedicated ArgoCD KSOPS age key + encrypted argocd/sops-age secret")]
+argocd-ksops:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    [ -f "{{ flux_age_key }}" ] || { echo "Missing flux key {{ flux_age_key }}"; exit 1; }
+    mkdir -p "$(dirname "{{ argocd_key }}")"
+    [ -f "{{ argocd_key }}" ] || age-keygen -o "{{ argocd_key }}"
+    {
+      echo "---"; echo "apiVersion: v1"; echo "kind: Secret"
+      echo "metadata:"; echo "  name: sops-age"; echo "  namespace: argocd"
+      echo "type: Opaque"; echo "stringData:"; echo "  keys.txt: |"
+      sed 's/^/    /' "{{ argocd_key }}"
+    } > "{{ secret_file }}"
+    SOPS_AGE_KEY_FILE="{{ flux_age_key }}" sops --encrypt --in-place "{{ secret_file }}"
+    echo "Encrypted {{ secret_file }} (argocd KSOPS key: {{ argocd_key }}) -- uncomment it in kustomization.yaml"

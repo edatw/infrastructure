@@ -1,0 +1,23 @@
+---
+# Flux Kustomization for the Gateway API source manifests.
+# Applies shangkuei base/gateway-api: the upstream GitRepository + the
+# ArtifactGenerator that produces the gateway-api-standard / -experimental
+# ExternalArtifacts consumed by the CRs below.
+# (Replaces the former local `../../base/gateway-api` root resource.)
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: gateway-api-source
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 5m
+  prune: true
+  wait: false # only applies source CRs; readiness is enforced by the consumers
+
+  sourceRef:
+    kind: GitRepository
+    name: shangkuei-infrastructure
+    namespace: flux-system
+
+  path: ./kubernetes/base/gateway-api

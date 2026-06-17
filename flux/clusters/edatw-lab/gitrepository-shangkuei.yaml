@@ -1,0 +1,21 @@
+---
+# Shared base manifests reused from shangkuei/infrastructure (public repo).
+# The cluster-agnostic app bases (cilium, cert-manager, openebs, csi-driver-smb,
+# snapshot-controller, flux-operator, gateway-api) are NOT vendored into this
+# repo -- the app Kustomizations source them from here and apply edatw-lab
+# deltas via spec.patches.
+#
+# Pinned to a commit (no tags exist upstream) so an upstream change cannot move
+# this cluster. Bump deliberately after reviewing the diff.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: shangkuei-infrastructure
+  namespace: flux-system
+spec:
+  interval: 1h
+  timeout: 60s
+  url: https://github.com/shangkuei/infrastructure.git
+  ref:
+    branch: main
+    commit: 1486aabe8391dae4a71bb2faafed055dd19e53c1

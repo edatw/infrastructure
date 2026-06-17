@@ -1,0 +1,85 @@
+# Flux Cluster - edatw-lab
+# Flux operations + SOPS-encrypted Kubernetes secret management.
+# Uses the dedicated Flux age key (also wired into the cluster as flux-system/sops-age).
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+flux_namespace := "flux-system"
+sops_age_key_file := env("HOME") / ".config/sops/age/edatw-lab-flux.txt"
+secrets_dir := "secrets"
+
+[doc("List recipes")]
+default:
+    @just --list --unsorted
+
+# ============================================================================
+# Flux Operations (use your ambient KUBECONFIG)
+# ============================================================================
+
+[doc("Force reconcile the git source and the cluster Kustomization")]
+flux-reconcile:
+    flux reconcile source git flux-system
+    flux reconcile kustomization flux-system --with-source
+
+[doc("Show GitRepository + Kustomization + HelmRelease status")]
+flux-status:
+    kubectl -n {{ flux_namespace }} get gitrepository flux-system || true
+    @echo "---"
+    kubectl -n {{ flux_namespace }} get kustomization
+    @echo "---"
+    kubectl get helmrelease -A
+
+[doc("Tail Flux controller logs")]
+flux-logs:
+    flux logs --level=info --all-namespaces
+
+# ============================================================================
+# SOPS Secret Management (encrypted with the Flux age key)
+# ============================================================================
+
+[doc("Create an encrypted Secret template (--name <n> --namespace <ns>)")]
+[arg('name', long)]
+[arg('namespace', long)]
+secret-create name namespace:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p "{{ secrets_dir }}"
+    f="{{ secrets_dir }}/{{ name }}.enc.yaml"
+    cat > "$f" <<EOF
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: {{ name }}
+      namespace: {{ namespace }}
+    type: Opaque
+    stringData:
+      # add key: value pairs (encrypted on save)
+    EOF
+    "${EDITOR:-vim}" "$f"
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops --encrypt --in-place "$f"
+    echo "Encrypted: $f  (add it to a kustomization.yaml resources list)"
+
+[doc("Edit an encrypted secret in place (--file <path>)")]
+[arg('file', long)]
+secret-edit file:
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops "{{ file }}"
+
+[doc("View a decrypted secret (--file <path>)")]
+[arg('file', long)]
+secret-view file:
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "{{ file }}"
+
+[doc("Validate that all *.enc.yaml secrets decrypt")]
+sops-validate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    fail=0
+    while IFS= read -r f; do
+        if SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "$f" >/dev/null 2>&1; then
+            echo "  [OK]   $f"
+        else
+            echo "  [FAIL] $f"; fail=1
+        fi
+    done < <(find . -name '*.enc.yaml')
+    exit $fail

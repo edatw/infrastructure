@@ -1,0 +1,50 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base Flux instance configuration
+resources:
+  - ../../../base/flux-instance
+  # SOPS-encrypted secrets for Flux (decrypted by kustomize-controller).
+  # Generate them with edatw-lab's flux age key (just secrets), then uncomment.
+  # Until then the Terraform gitops-edatw-lab module is the source of these
+  # secrets (flux-system/sops-age, flux-system/flux-system git credentials).
+  # - ./secret-sops-age.enc.yaml
+  # - ./secret-flux-git-credentials.enc.yaml
+
+# Inherit labels from base
+labels:
+  - pairs:
+      app.kubernetes.io/name: flux
+      app.kubernetes.io/instance: flux-system
+      app.kubernetes.io/managed-by: flux-operator
+    includeSelectors: true
+
+# Patch FluxInstance for edatw-lab cluster
+patches:
+  # Patch sync path to point to edatw-lab cluster directory
+  - patch: |-
+      - op: replace
+        path: /spec/sync/path
+        value: flux/clusters/edatw-lab
+    target:
+      kind: FluxInstance
+      name: flux
+  # Enable SOPS decryption for flux-system Kustomization
+  - patch: |-
+      - op: add
+        path: /spec/kustomize/patches
+        value:
+          - patch: |
+              - op: add
+                path: /spec/decryption
+                value:
+                  provider: sops
+                  secretRef:
+                    name: sops-age
+            target:
+              kind: Kustomization
+              name: flux-system
+    target:
+      kind: FluxInstance
+      name: flux
