@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "skills": {
+    "gitops": {
+      "source": "shangkuei/terraform-modules",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gitops/SKILL.md",
+      "computedHash": "7396ea7b34b986c6ecda573d16f3c5a560c358ec928a476cb49a89aaa44bed72"
+    },
+    "gitops-cluster-debug": {
+      "source": "fluxcd/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gitops-cluster-debug/SKILL.md",
+      "computedHash": "db60680108a3fc03c3eeb6c4bb4528123368157e3618d951b06a30594b9fd726"
+    },
+    "gitops-knowledge": {
+      "source": "fluxcd/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gitops-knowledge/SKILL.md",
+      "computedHash": "46f1c351fc49da8c9474d76f06ecd2d6a2e9b894fca9aec19a617d395b695c11"
+    },
+    "gitops-repo-audit": {
+      "source": "fluxcd/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gitops-repo-audit/SKILL.md",
+      "computedHash": "14c803efe28b157ffb0508a82eaadfbf34e3398d45af59ebeb69cb02a727768d"
+    },
+    "siderolabs": {
+      "source": "docs.siderolabs.com",
+      "sourceType": "well-known",
+      "computedHash": "161c48f9a0b558d2f8448b85fb57cb4b2c6da3bcffa5e7c7d7e9b1a86a1899a3"
+    },
+    "talos-cluster": {
+      "source": "shangkuei/terraform-modules",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/talos-cluster/SKILL.md",
+      "computedHash": "4053228c9dd225b77c870c78167e37f8772bce5cf98ce4729ba5077229f510ee"
+    }
+  }
+}

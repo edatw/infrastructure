@@ -3,6 +3,11 @@
 # Run manually: pre-commit run --all-files
 # Update hooks: pre-commit autoupdate
 
+# Vendored agent skills (synced via skills-lock.json) are kept verbatim from
+# their upstream sources; exclude them from all hooks so repo formatting and
+# lint rules don't rewrite them and drift them from the recorded hashes.
+exclude: '^\.(agents|claude)/skills/'
+
 repos:
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
