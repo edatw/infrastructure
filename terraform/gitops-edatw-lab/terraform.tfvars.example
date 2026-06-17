@@ -1,0 +1,66 @@
+# EDATW Lab GitOps - Example Configuration
+#
+# Copy to terraform.tfvars and fill in real values:
+#   cp terraform.tfvars.example terraform.tfvars
+# Then encrypt before committing (never commit plaintext):
+#   just sops-encrypt-tfvars && rm terraform.tfvars
+
+# =============================================================================
+# Kubernetes Connection
+# First create the gitops-admin ServiceAccount + cluster-admin binding (one-time):
+#   kubectl -n kube-system create serviceaccount gitops-admin
+#   kubectl create clusterrolebinding gitops-admin \
+#     --clusterrole=cluster-admin --serviceaccount=kube-system:gitops-admin
+# Host + CA come from your kubeconfig:
+#   kubernetes_host: kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'
+#   kubernetes_cluster_ca_certificate:
+#     kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}'
+# The token is SHORT-LIVED: leave the placeholder below and let
+# `just tf-refresh-token` mint a fresh token and rewrite it into the encrypted
+# tfvars before each terraform run (e.g. `just tf-refresh-token tf-apply`).
+# =============================================================================
+
+kubernetes_host                   = "https://100.64.0.10:6443"
+kubernetes_token                  = "REPLACE_WITH_SERVICEACCOUNT_TOKEN"
+kubernetes_cluster_ca_certificate = "REPLACE_WITH_BASE64_CA_CERT"
+
+# =============================================================================
+# GitHub
+# =============================================================================
+
+# Defaults (edatw / infrastructure / main) live in variables.tf; override only if changed.
+# github_owner      = "edatw"
+# github_repository = "infrastructure"
+# github_branch     = "main"
+#
+# Least-privilege scope: Flux only clones/pulls this repo over HTTPS, so the
+# token needs read-only access to repository contents — nothing more.
+#   - Fine-grained PAT (github_pat_...): repo access = edatw/infrastructure only,
+#     Permissions -> Contents: Read-only (Metadata: Read is added automatically).
+#   - Classic PAT (ghp_...): the `repo` scope (smallest available for a private repo).
+# Add Contents: Read & Write only if you later enable image-update automation.
+# Tip: `just tf-set-github-token` writes this for you (prompts for a scoped PAT,
+# or falls back to `gh auth token`).
+github_token = "github_pat_REPLACE_WITH_SCOPED_PAT"
+
+# =============================================================================
+# Cluster / Flux
+# =============================================================================
+
+# cluster_name = "edatw-lab"
+# cluster_path = "flux/clusters/edatw-lab"
+# flux_namespace      = "flux-system"
+# flux_network_policy = true
+# flux_components_extra = []
+
+# Dedicated Flux age PRIVATE key (in-cluster SOPS decryption).
+# Generate once: age-keygen -o ~/.config/sops/age/edatw-lab-flux.txt
+# sops_age_key_path = "~/.config/sops/age/edatw-lab-flux.txt"
+
+# =============================================================================
+# Component Versions (optional — defaults in variables.tf)
+# =============================================================================
+
+# cert_manager_version  = "v1.19.1"
+# flux_operator_version = "0.33.0"
+# flux_version          = "v2.7.3"

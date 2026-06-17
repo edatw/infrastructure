@@ -1,0 +1,282 @@
+# EDATW Lab GitOps - Justfile
+# Bootstraps Flux on the talos-cluster-edatw-lab cluster (Terraform + SOPS).
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+# Required by the shared makefiles modules (sops.just must be imported first).
+# sops_env_name reuses the cluster's terraform age key for encryption.
+sops_env_name := "talos-gitops-edatw-lab"
+
+import '../../makefiles/sops.just'
+import '../../makefiles/terraform.just'
+
+# The flux-* verification recipes use your ambient KUBECONFIG (export it to
+# point at the edatw-lab cluster). The Terraform providers use explicit
+# credentials from terraform.tfvars, not a kubeconfig file.
+flux_namespace := "flux-system"
+
+# ServiceAccount (in kube-system) whose short-lived token authenticates the
+# Terraform kubernetes/helm/kubectl providers. `just tf-refresh-token` mints a
+# fresh token and rewrites it into the encrypted tfvars before each tf run.
+gitops_sa := env("GITOPS_SA", "gitops-admin")
+token_ttl := env("GITOPS_TOKEN_TTL", "1h")
+
+# ============================================================================
+# Default & Help
+# ============================================================================
+
+[doc("Show available recipes")]
+default:
+    @just --list --unsorted
+
+# ============================================================================
+# Flux Verification (use your ambient KUBECONFIG)
+# ============================================================================
+
+[doc("Show Flux + cert-manager rollout status")]
+flux-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    kubectl -n {{ flux_namespace }} get pods
+    echo "---"
+    kubectl -n cert-manager get pods
+    echo "---"
+    kubectl -n {{ flux_namespace }} get fluxinstance
+
+[doc("List Flux Kustomizations and their reconcile status")]
+flux-kustomizations:
+    kubectl -n {{ flux_namespace }} get kustomizations -o wide
+
+[doc("List Flux GitRepository sources")]
+flux-sources:
+    kubectl -n {{ flux_namespace }} get gitrepositories -o wide
+
+[doc("Run flux check")]
+flux-check:
+    flux check
+
+[doc("Show Flux controller logs")]
+flux-logs:
+    flux logs --level=info --all-namespaces
+
+[doc("Force reconcile the Flux git source and all kustomizations")]
+flux-reconcile:
+    flux reconcile source git flux-system
+    flux reconcile kustomization --all
+
+[doc("Verify the sops-age secret exists (Flux decryption key)")]
+flux-check-sops:
+    kubectl -n {{ flux_namespace }} get secret sops-age
+
+# ============================================================================
+# Setup (one-time prereqs)
+# ============================================================================
+
+# Bootstrap everything needed before the first terraform run: init the SOPS age
+# key + .sops.yaml, copy the example config files, create the gitops-admin
+# ServiceAccount on the cluster (after confirming the kubeconfig), fill the
+# cluster connection (host/CA) from the kubeconfig, and set github_token.
+# Idempotent; run once.
+[doc("One-time prereqs: init SOPS key, copy configs, create cluster SA, fill cluster conn + github_token")]
+setup: sops-init-config setup-config setup-cluster tf-set-cluster-conn tf-set-github-token
+    @echo ""
+    @echo "{{ _sops_green }}==> Prereqs complete. Next steps:{{ _sops_nc }}"
+    @echo "  1. Review {{ tf_tfvars_plain }} (host/CA/github_token are filled in;"
+    @echo "     kubernetes_token stays a placeholder — tf-refresh-token mints it per run)"
+    @echo "  2. Edit {{ tf_backend_hcl }} if the backend differs from the example"
+    @echo "  3. just tf-encrypt-tfvars && just tf-encrypt-backend"
+    @echo "  4. just tf-init && just tf-refresh-token tf-plan"
+
+[doc("Show the current kubeconfig context/server and confirm it targets edatw-lab")]
+kubeconfig-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ctx=$(kubectl config current-context)
+    server=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+    echo "{{ _sops_blue }}==> Current kubeconfig:{{ _sops_nc }}"
+    echo "    context: $ctx"
+    echo "    server:  $server"
+    read -r -p "Is this the edatw-lab cluster? [y/N] " ans
+    case "$ans" in
+        [yY] | [yY][eE][sS]) echo "{{ _sops_green }}==> Confirmed{{ _sops_nc }}" ;;
+        *) echo "{{ _sops_red }}==> Aborted. Switch with: kubectl config use-context <name>{{ _sops_nc }}" >&2; exit 1 ;;
+    esac
+
+[doc("Copy example tfvars/backend to working files (won't overwrite existing)")]
+setup-config:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -f "{{ tf_tfvars_plain }}" ] || [ -f "{{ tf_tfvars_enc }}" ]; then
+        echo "{{ _sops_yellow }}==> tfvars already exists, leaving it untouched{{ _sops_nc }}"
+    else
+        cp "{{ tf_tfvars_example }}" "{{ tf_tfvars_plain }}"
+        echo "{{ _sops_green }}==> Created {{ tf_tfvars_plain }} from example{{ _sops_nc }}"
+    fi
+    if [ -f "{{ tf_backend_hcl }}" ] || [ -f "{{ tf_backend_enc }}" ]; then
+        echo "{{ _sops_yellow }}==> backend already exists, leaving it untouched{{ _sops_nc }}"
+    else
+        cp "{{ tf_backend_example }}" "{{ tf_backend_hcl }}"
+        echo "{{ _sops_green }}==> Created {{ tf_backend_hcl }} from example{{ _sops_nc }}"
+    fi
+
+[doc("Create the gitops-admin ServiceAccount + cluster-admin binding (idempotent; confirms kubeconfig)")]
+setup-cluster: kubeconfig-check
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "{{ _sops_blue }}==> Ensuring serviceaccount/{{ gitops_sa }} in kube-system{{ _sops_nc }}"
+    kubectl -n kube-system create serviceaccount "{{ gitops_sa }}" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    echo "{{ _sops_blue }}==> Ensuring clusterrolebinding/{{ gitops_sa }} (cluster-admin){{ _sops_nc }}"
+    kubectl create clusterrolebinding "{{ gitops_sa }}" \
+        --clusterrole=cluster-admin \
+        --serviceaccount="kube-system:{{ gitops_sa }}" \
+        --dry-run=client -o yaml | kubectl apply -f -
+    echo "{{ _sops_green }}==> Cluster prereqs ready{{ _sops_nc }}"
+
+[doc("Fill kubernetes_host + cluster CA in the plaintext tfvars from the current kubeconfig")]
+tf-set-cluster-conn: kubeconfig-check
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{ tf_tfvars_plain }}" ]; then
+        echo "{{ _sops_red }}Error: {{ tf_tfvars_plain }} not found. Run 'just setup-config' first.{{ _sops_nc }}" >&2
+        exit 1
+    fi
+    host=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')
+    ca=$(kubectl config view --minify --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')
+    if [ -z "$host" ] || [ -z "$ca" ]; then
+        echo "{{ _sops_red }}Error: could not read host/CA from the current kubeconfig.{{ _sops_nc }}" >&2
+        echo "(certificate-authority-data must be inline, not a file reference)" >&2
+        exit 1
+    fi
+    HOST="$host" perl -i -pe 's/^(kubernetes_host\s*=\s*)"[^"]*"/$1"$ENV{HOST}"/' "{{ tf_tfvars_plain }}"
+    CA="$ca" perl -i -pe 's/^(kubernetes_cluster_ca_certificate\s*=\s*)"[^"]*"/$1"$ENV{CA}"/' "{{ tf_tfvars_plain }}"
+    echo "{{ _sops_green }}==> Set kubernetes_host + CA in {{ tf_tfvars_plain }}{{ _sops_nc }}"
+    echo "    host: $host"
+
+# Set github_token in the tfvars. Token source, in order:
+#   1. $GITHUB_TOKEN if set (non-interactive — for CI / paste a scoped PAT)
+#   2. else prompt to paste a scoped PAT (input hidden)
+#   3. else (empty input) fall back to `gh auth token`
+# Least-privilege: Flux only pulls the repo, so a PAT with read-only repo
+# contents is enough (fine-grained Contents: Read-only, or classic `repo`).
+# `gh auth token` works but is broad (full read+write) and global to your login.
+# Operates on the plaintext tfvars during setup, or decrypts/re-encrypts when
+# rotating later. One-time (or on rotation), not per tf run.
+#   just tf-set-github-token                       # prompt, or gh auth token
+#   GITHUB_TOKEN=github_pat_xxx just tf-set-github-token
+[doc("Set github_token in the tfvars (prompts for a scoped PAT, $GITHUB_TOKEN, or gh auth token)")]
+tf-set-github-token:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Pick the working file: plaintext during initial setup (pre-encryption),
+    # else the encrypted tfvars (token rotation after encrypt).
+    if [ -f "{{ tf_tfvars_plain }}" ]; then
+        mode="plain"
+    elif [ -f "{{ tf_tfvars_enc }}" ]; then
+        mode="enc"
+    else
+        echo "{{ _sops_red }}Error: no tfvars found. Run 'just setup-config' first.{{ _sops_nc }}" >&2
+        exit 1
+    fi
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        echo "{{ _sops_blue }}==> Using GITHUB_TOKEN from environment{{ _sops_nc }}"
+        token="$GITHUB_TOKEN"
+    else
+        echo "{{ _sops_blue }}==> GitHub token for Flux (needs read-only repo contents){{ _sops_nc }}"
+        echo "    Fine-grained PAT: Contents: Read-only  |  Classic PAT: 'repo' scope"
+        read -rs -p "    Paste a scoped PAT, or press Enter to use \`gh auth token\`: " token
+        echo
+        if [ -z "$token" ]; then
+            echo "{{ _sops_blue }}==> Falling back to \`gh auth token\` (broad scope){{ _sops_nc }}"
+            token=$(gh auth token)
+        fi
+    fi
+    if [ -z "$token" ]; then
+        echo "{{ _sops_red }}Error: empty GitHub token{{ _sops_nc }}" >&2
+        exit 1
+    fi
+    if [ "$mode" = "enc" ]; then
+        # Decrypt to the gitignored plaintext tfvars; remove it on exit.
+        trap 'rm -f "{{ tf_tfvars_plain }}"' EXIT
+        SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "{{ tf_tfvars_enc }}" > "{{ tf_tfvars_plain }}"
+    fi
+    if ! grep -qE '^github_token[[:space:]]*=' "{{ tf_tfvars_plain }}"; then
+        echo "{{ _sops_red }}Error: no github_token assignment in tfvars{{ _sops_nc }}" >&2
+        exit 1
+    fi
+    TOKEN="$token" perl -i -pe 's/^(github_token\s*=\s*)"[^"]*"/$1"$ENV{TOKEN}"/' "{{ tf_tfvars_plain }}"
+    if [ "$mode" = "enc" ]; then
+        SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -e "{{ tf_tfvars_plain }}" > "{{ tf_tfvars_enc }}"
+        echo "{{ _sops_green }}==> Rewrote github_token in {{ tf_tfvars_enc }}{{ _sops_nc }}"
+    else
+        echo "{{ _sops_green }}==> Set github_token in {{ tf_tfvars_plain }} (encrypt with: just tf-encrypt-tfvars){{ _sops_nc }}"
+    fi
+
+# ============================================================================
+# Token Rotation (short-lived gitops-admin token -> encrypted tfvars)
+# ============================================================================
+
+# Mint a fresh token, then run terraform in one invocation:
+#   just tf-refresh-token tf-plan
+#   just tf-refresh-token tf-apply -auto-approve
+[doc("Mint a fresh gitops-admin token and rewrite it into the encrypted tfvars")]
+tf-refresh-token:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ ! -f "{{ tf_tfvars_enc }}" ]; then
+        echo "{{ _sops_red }}Error: {{ tf_tfvars_enc }} not found.{{ _sops_nc }}" >&2
+        echo "Encrypt tfvars first: just tf-encrypt-tfvars" >&2
+        exit 1
+    fi
+    echo "{{ _sops_blue }}==> Minting {{ token_ttl }} token for serviceaccount/{{ gitops_sa }} (ambient KUBECONFIG){{ _sops_nc }}"
+    token=$(kubectl -n kube-system create token "{{ gitops_sa }}" --duration={{ token_ttl }})
+    # Decrypt to the gitignored plaintext tfvars, rewrite the token, re-encrypt,
+    # then remove the plaintext (even on failure) so it never lingers on disk.
+    trap 'rm -f "{{ tf_tfvars_plain }}"' EXIT
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "{{ tf_tfvars_enc }}" > "{{ tf_tfvars_plain }}"
+    if ! grep -qE '^kubernetes_token[[:space:]]*=' "{{ tf_tfvars_plain }}"; then
+        echo "{{ _sops_red }}Error: no kubernetes_token assignment in decrypted tfvars{{ _sops_nc }}" >&2
+        exit 1
+    fi
+    TOKEN="$token" perl -i -pe 's/^(kubernetes_token\s*=\s*)"[^"]*"/$1"$ENV{TOKEN}"/' "{{ tf_tfvars_plain }}"
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -e "{{ tf_tfvars_plain }}" > "{{ tf_tfvars_enc }}"
+    echo "{{ _sops_green }}==> Rewrote kubernetes_token in {{ tf_tfvars_enc }} ({{ token_ttl }} TTL){{ _sops_nc }}"
+
+# ============================================================================
+# Workflow
+# ============================================================================
+
+[doc("Show setup workflow")]
+workflow:
+    @echo ""
+    @echo "EDATW Lab GitOps Setup Workflow"
+    @echo "==============================="
+    @echo ""
+    @echo "0. Prereqs (cluster bootstrapped + reachable, kubeconfig set):"
+    @echo "   just setup"
+    @echo "   # Copies example configs, confirms kubeconfig, creates the"
+    @echo "   # gitops-admin SA + binding, and sets github_token."
+    @echo ""
+    @echo "1. Generate the dedicated Flux age key (one-time):"
+    @echo "   age-keygen -o ~/.config/sops/age/edatw-lab-flux.txt"
+    @echo "   # Add its PUBLIC key to your repo .sops.yaml for manifest encryption."
+    @echo ""
+    @echo "2. Configure variables:"
+    @echo "   # Edit {{ tf_tfvars_plain }}: kubernetes_host/ca (token is per-run)"
+    @echo "   just tf-encrypt-tfvars && rm {{ tf_tfvars_plain }}"
+    @echo ""
+    @echo "3. Configure backend:"
+    @echo "   # Edit {{ tf_backend_hcl }}"
+    @echo "   just tf-encrypt-backend && rm {{ tf_backend_hcl }}"
+    @echo ""
+    @echo "4. Deploy (mint a fresh {{ token_ttl }} token, then run terraform):"
+    @echo "   just tf-init"
+    @echo "   just tf-refresh-token tf-plan"
+    @echo "   just tf-refresh-token tf-apply -auto-approve"
+    @echo "   just flux-status"
+
+alias clean := tf-clean

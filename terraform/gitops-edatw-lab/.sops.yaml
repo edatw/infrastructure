@@ -1,0 +1,22 @@
+# Local SOPS configuration for the edatw-lab gitops environment.
+#
+# This encrypts THIS environment's terraform.tfvars / backend.hcl. It reuses the
+# talos-cluster-edatw-lab terraform age key (same operator + cluster). It is NOT
+# the Flux decryption key — that is a separate, dedicated key passed to the
+# module via var.sops_age_key_file (default ~/.config/sops/age/edatw-lab-flux.txt).
+#
+# Key: /Users/shangkuei/.config/sops/age/talos-cluster-edatw-lab.txt
+creation_rules:
+  # Match input files for encryption (terraform.tfvars -> terraform.tfvars.enc)
+  - path_regex: .*\.tfvars$
+    age: age1pf4r05vxfemce29n249n4vnt8h0e064wf9pa8pdmpu64s4yzvyxs3ejs25
+
+  - path_regex: .*\.tfvars\.enc$
+    age: age1pf4r05vxfemce29n249n4vnt8h0e064wf9pa8pdmpu64s4yzvyxs3ejs25
+
+  # Match backend configuration files (backend.hcl -> backend.hcl.enc)
+  - path_regex: backend\.hcl$
+    age: age1pf4r05vxfemce29n249n4vnt8h0e064wf9pa8pdmpu64s4yzvyxs3ejs25
+
+  - path_regex: backend\.hcl\.enc$
+    age: age1pf4r05vxfemce29n249n4vnt8h0e064wf9pa8pdmpu64s4yzvyxs3ejs25
