@@ -133,7 +133,7 @@ just tf-encrypt-backend && rm backend.hcl
 # 5. Deploy
 just tf-init
 just tf-apply -auto-approve
-just talos-apply --insecure true
+just talos-apply all --insecure
 # Wait for nodes to join Tailscale
 just talos-bootstrap
 just talos-health
@@ -223,19 +223,19 @@ installed. Deploy Cilium using the generated `generated/cilium-values.yaml`.
 | Command | Description |
 |---------|-------------|
 | `just talos-apply` | Apply configs to all nodes |
-| `just talos-apply --node cp-01 --insecure true` | Apply to specific node |
+| `just talos-apply cp-01 --insecure` | Apply to specific node |
 | `just talos-bootstrap` | Bootstrap Kubernetes cluster |
 | `just talos-kubeconfig` | Retrieve kubeconfig |
 | `just talos-health` | Check cluster health |
 | `just talos-nodes` | List cluster nodes |
 | `just talos-pods` | List all pods |
 | `just talos-status` | Complete cluster status |
-| `just talos-upgrade-k8s --version v1.32.0` | Upgrade Kubernetes |
-| `just talos-upgrade --node <ip> --image <url>` | Upgrade Talos on a node |
-| `just talos-dashboard --node <ip>` | Open Talos dashboard |
-| `just talos-logs --node <ip> --service <svc>` | View node service logs |
-| `just talos-reset --node <ip>` | Reset a node (destructive) |
-| `just talos-reboot --node <ip>` | Reboot a node |
+| `just talos-upgrade-k8s v1.32.0` | Upgrade Kubernetes |
+| `just talos-upgrade <ip[,ip…]> --image <url>` | Upgrade Talos on node(s) |
+| `just talos-dashboard <ip[,ip…]>` | Open Talos dashboard |
+| `just talos-logs <ip[,ip…]> <svc>` | View node service logs |
+| `just talos-reset <ip[,ip…]>` | Reset node(s) (destructive) |
+| `just talos-reboot <ip[,ip…]>` | Reboot node(s) |
 
 ### Workflow
 
@@ -280,8 +280,10 @@ generated `*-patch.yaml` files.
 | worker-01..03 | ZimaBoard 2 16G | amd64 SecureBoot | `metal-amd64-secureboot.iso` (schematic `c10360c1…`) | eMMC (`/dev/disk/by-id/mmc-…`) |
 | worker-04 | ZimaBlade 16G | amd64 SecureBoot | `metal-amd64-secureboot.iso` | eMMC (`/dev/disk/by-id/mmc-…`) |
 
-> `talos-apply` uses long flags: `just talos-apply --node cp-01 --insecure true`
-> (`--node=cp-01 --insecure=true` also works). Plain `name=value` is **not** accepted.
+> `talos-apply` takes the node name positionally; any extra flags pass straight
+> through to `talosctl` — e.g. `just talos-apply cp-01 --insecure`. Pass several
+> nodes comma-separated (`just talos-apply cp-01,worker-01 --insecure`), or `all`
+> (the default) to apply to every node: `just talos-apply all --insecure`.
 
 ### 1. Flash boot media (on the workstation)
 
@@ -322,8 +324,8 @@ talosctl get disks --insecure -n <node-ip> -e <node-ip>  # confirm the system di
 ### 3. Install (apply-config writes Talos to the install disk, then reboots)
 
 ```bash
-just talos-apply --node cp-01 --insecure true   # base config + patches, insecure
-# workers: just talos-apply --node worker-01 --insecure true   (… worker-04)
+just talos-apply cp-01 --insecure   # base config + patches, insecure
+# workers: just talos-apply worker-01 --insecure   (… worker-04)
 ```
 
 ### 4. Verify

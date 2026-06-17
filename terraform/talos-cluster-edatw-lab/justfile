@@ -8,7 +8,6 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 # ============================================================================
 
 # Required by the shared makefiles modules (sops.just must be imported first)
-sops_domain := "terraform"
 sops_env_name := "talos-cluster-edatw-lab"
 
 import '../../makefiles/sops.just'
@@ -57,7 +56,7 @@ cilium-test-cleanup:
 # ============================================================================
 
 [doc("Complete cluster setup: init → apply → talos-apply → bootstrap → health")]
-all: tf-init (tf-apply "-auto-approve") (talos-apply "" "true" "") talos-bootstrap talos-health
+all: tf-init (tf-apply "-auto-approve") (talos-apply "all" "--insecure") talos-bootstrap talos-health
     @echo ""
     @echo "Cluster deployment complete!"
     @echo "  export TALOSCONFIG=$(pwd)/{{ talosconfig }}"
@@ -79,7 +78,7 @@ workflow:
     @echo ""
     @echo "2. Deploy:"
     @echo "   just tf-init && just tf-apply -auto-approve"
-    @echo "   just talos-apply --insecure true"
+    @echo "   just talos-apply all --insecure   # all nodes; or: just talos-apply cp-01 --insecure"
     @echo "   just talos-bootstrap && just talos-health"
     @echo ""
     @echo "3. CNI:"
