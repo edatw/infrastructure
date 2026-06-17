@@ -260,6 +260,17 @@ variable "cilium_helm_values" {
   }
 }
 
+variable "gateway_api_version" {
+  description = "Gateway API CRD release tag baked into the Talos config when Cilium Gateway API is enabled. Latest stable from kubernetes-sigs/gateway-api; bump with `just gateway-api-bump`."
+  type        = string
+  default     = "v1.5.1"
+
+  validation {
+    condition     = can(regex("^v[0-9]+\\.[0-9]+\\.[0-9]+$", var.gateway_api_version))
+    error_message = "Gateway API version must be a release tag like 'v1.5.1'."
+  }
+}
+
 # =============================================================================
 # Security Configuration
 # =============================================================================

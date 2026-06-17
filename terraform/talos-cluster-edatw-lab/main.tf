@@ -30,11 +30,12 @@ module "talos_cluster" {
   kubeprism_port                  = var.kubeprism_port
 
   # Network configuration
-  pod_cidr           = var.pod_cidr
-  service_cidr       = var.service_cidr
-  dns_domain         = var.dns_domain
-  cni_name           = var.cni_name
-  cilium_helm_values = var.cilium_helm_values
+  pod_cidr            = var.pod_cidr
+  service_cidr        = var.service_cidr
+  dns_domain          = var.dns_domain
+  cni_name            = var.cni_name
+  cilium_helm_values  = var.cilium_helm_values
+  gateway_api_version = var.gateway_api_version
 
   # Security configuration
   cert_sans = var.cert_sans
