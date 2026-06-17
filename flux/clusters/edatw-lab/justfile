@@ -33,6 +33,22 @@ flux-status:
 flux-logs:
     flux logs --level=info --all-namespaces
 
+[doc("Show the managed-resource tree of a Kustomization (default flux-system)")]
+flux-tree name="flux-system":
+    flux tree kustomization {{ name }} -n {{ flux_namespace }}
+
+[doc("Show recent Flux events across all namespaces")]
+flux-events:
+    flux events --all-namespaces
+
+[doc("Suspend reconciliation of a Kustomization (default flux-system)")]
+flux-suspend name="flux-system":
+    flux suspend kustomization {{ name }} -n {{ flux_namespace }}
+
+[doc("Resume reconciliation of a Kustomization (default flux-system)")]
+flux-resume name="flux-system":
+    flux resume kustomization {{ name }} -n {{ flux_namespace }}
+
 # ============================================================================
 # Component Version Bump
 # ============================================================================
