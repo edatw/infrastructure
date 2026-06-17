@@ -118,21 +118,21 @@ Prometheus-based monitoring:
 age-keygen -o ~/.config/sops/age/talos-cluster-edatw-lab.txt
 
 # 2. Update .sops.yaml with the public key
-just sops-update-key
+just sops-init-config
 
 # 3. Configure and encrypt tfvars
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with real values
-just sops-encrypt-tfvars && rm terraform.tfvars
+just tf-encrypt-tfvars && rm terraform.tfvars
 
 # 4. Configure and encrypt backend
 cp backend.hcl.example backend.hcl
 # Edit backend.hcl with R2 credentials
-just sops-encrypt-backend && rm backend.hcl
+just tf-encrypt-backend && rm backend.hcl
 
 # 5. Deploy
-just terraform-init
-just terraform-apply
+just tf-init
+just tf-apply -auto-approve
 just talos-apply --insecure true
 # Wait for nodes to join Tailscale
 just talos-bootstrap
@@ -189,32 +189,36 @@ installed. Deploy Cilium using the generated `generated/cilium-values.yaml`.
 
 ## Just Commands
 
-### Terraform
+### Terraform (shared — `makefiles/terraform.just`)
 
 | Command | Description |
 |---------|-------------|
-| `just terraform-init` | Initialize Terraform with encrypted backend |
-| `just terraform-plan` | Generate execution plan |
-| `just terraform-apply` | Generate cluster configurations |
-| `just terraform-destroy` | Destroy infrastructure (with confirmation) |
-| `just terraform-validate` | Validate Terraform configuration |
-| `just terraform-fmt` | Format Terraform files |
-| `just terraform-output` | Show Terraform outputs |
-| `just terraform-upgrade` | Upgrade Terraform providers |
+| `just tf-init` | Initialize Terraform with encrypted backend |
+| `just tf-plan` | Generate execution plan |
+| `just tf-apply -auto-approve` | Apply (generate cluster configurations) |
+| `just tf-destroy` | Destroy infrastructure (with confirmation) |
+| `just tf-validate` | Validate Terraform configuration |
+| `just tf-fmt` | Format Terraform files |
+| `just tf-output` | Show Terraform outputs |
+| `just tf-upgrade` | Upgrade Terraform providers |
+| `just tf-clean` | Remove `.terraform`, state, and `generated/` |
+| `just tf-encrypt-tfvars` | Encrypt `terraform.tfvars` |
+| `just tf-encrypt-backend` | Encrypt `backend.hcl` |
+| `just tf-edit-tfvars` / `tf-edit-backend` | Edit encrypted tfvars/backend |
 
-### SOPS
+### SOPS (shared — `makefiles/sops.just`)
 
 | Command | Description |
 |---------|-------------|
-| `just sops-encrypt-tfvars` | Encrypt terraform.tfvars |
-| `just sops-encrypt-backend` | Encrypt backend.hcl |
-| `just sops-edit-tfvars` | Edit encrypted tfvars in-place |
-| `just sops-edit-backend` | Edit encrypted backend in-place |
-| `just sops-update-key` | Update .sops.yaml with current age public key |
-| `just sops-info` | Show SOPS key info |
-| `just sops-validate` | Validate encrypted files can be decrypted |
+| `just sops-encrypt --file <file>` | Encrypt a file in-place |
+| `just sops-decrypt --file <file>` | Decrypt a file to stdout |
+| `just sops-edit --file <file>` | Edit an encrypted file |
+| `just sops-keygen` | Generate an age key pair |
+| `just sops-init-config` | Generate key + update `.sops.yaml` |
+| `just sops-info` | Show SOPS key/config info |
+| `just sops-validate` | Validate all encrypted files decrypt |
 
-### Talos Cluster
+### Talos Cluster (shared — `makefiles/talos.just`)
 
 | Command | Description |
 |---------|-------------|
