@@ -40,7 +40,7 @@ flux-logs:
 # Bump every component version pin to latest upstream stable. Each component has
 # its own recipe below so they can be bumped independently; this runs them all.
 [doc("Bump all component version pins to latest stable")]
-bump-versions: bump-cilium bump-gateway-api
+bump-versions: bump-cert-manager bump-cilium bump-flux-operator bump-gateway-api
 
 # Cilium chart version, patched onto the remote base in kustomization-cilium.yaml
 # (and the documented pin in README.md). The Talos side pins it independently.
@@ -74,6 +74,38 @@ bump-gateway-api:
     echo "==> Updated kustomization-gateway-api-source.yaml"
     echo "NOTE: update the Talos pin to match:"
     echo "  - terraform/modules/talos-cluster/main.tf      gateway_api_version = \"$gw\""
+
+# cert-manager chart version, patched onto the remote base's HelmRelease in
+# kustomization-cert-manager.yaml. The Terraform bootstrap pins it independently.
+[doc("Bump the cert-manager chart version pin to latest stable")]
+bump-cert-manager:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # cert-manager chart versions keep the leading v.
+    cm=$(gh api repos/cert-manager/cert-manager/releases/latest --jq .tag_name)
+    cm="v${cm#v}"
+    echo "==> cert-manager chart: $cm"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    CM="$cm" perl -0777 -pi -e 's{(path: /spec/chart/spec/version\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{CM}"}' kustomization-cert-manager.yaml
+    echo "==> Updated kustomization-cert-manager.yaml"
+    echo "NOTE: keep the Terraform bootstrap pin in sync:"
+    echo "  - terraform/gitops-edatw-lab  cert_manager_version = \"$cm\"  (just gitops-bump)"
+
+# flux-operator chart version, patched onto the remote base's HelmRelease in
+# kustomization-flux-operator.yaml. The Terraform bootstrap pins it independently.
+[doc("Bump the flux-operator chart version pin to latest stable")]
+bump-flux-operator:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The flux-operator chart version drops the leading v.
+    fo=$(gh api repos/controlplaneio-fluxcd/flux-operator/releases/latest --jq .tag_name)
+    fo="${fo#v}"
+    echo "==> flux-operator chart: $fo"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    FO="$fo" perl -0777 -pi -e 's{(path: /spec/chart/spec/version\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{FO}"}' kustomization-flux-operator.yaml
+    echo "==> Updated kustomization-flux-operator.yaml"
+    echo "NOTE: keep the Terraform bootstrap pin in sync:"
+    echo "  - terraform/gitops-edatw-lab  flux_operator_version = \"$fo\"  (just gitops-bump)"
 
 # ============================================================================
 # SOPS Secret Management (encrypted with the Flux age key)
