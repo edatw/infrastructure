@@ -84,10 +84,14 @@ spec:
       resources:
         requests:
           cpu: 50m
-          memory: 64Mi
+          memory: 128Mi
         limits:
           cpu: 200m
-          memory: 128Mi
+          # 512Mi (not 128Mi): the chart applies these limits to both the
+          # copyutil initContainer and dex-server, which copy and memory-map
+          # the ~210MB argocd binary. 128Mi caused init OOMKills and a
+          # dex-server SIGSEGV (text-page fault under a starved memcg).
+          memory: 512Mi
 
     # Redis configuration
     redis:
