@@ -8,7 +8,13 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-flux_age_key := env("HOME") / ".config/sops/age/edatw-lab-flux.txt"
+# Shared makefiles SOPS module: provides the Flux age key path (sops_age_key_file)
+# and generic sops-* recipes. `just sops-init-config` generates the key and writes
+# its public key into .sops.yaml.
+sops_env_name := "flux-edatw-lab"
+
+import '../../../../makefiles/sops.just'
+
 sops_age_enc := "secret-sops-age.enc.yaml"
 flux_git_enc := "secret-flux-git-credentials.enc.yaml"
 
@@ -16,27 +22,18 @@ flux_git_enc := "secret-flux-git-credentials.enc.yaml"
 default:
     @just --list --unsorted
 
-[doc("Write .sops.yaml with the Flux age PUBLIC key")]
-sops-update-key:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    [ -f "{{ flux_age_key }}" ] || { echo "Missing {{ flux_age_key }} (age-keygen -o it)"; exit 1; }
-    pub=$(age-keygen -y "{{ flux_age_key }}")
-    sed -i '' "s|age: age1.*|age: ${pub}|" .sops.yaml
-    echo "Updated .sops.yaml -> ${pub}"
-
 [doc("Generate + encrypt the flux-system/sops-age secret")]
 secret-sops-age:
     #!/usr/bin/env bash
     set -euo pipefail
-    [ -f "{{ flux_age_key }}" ] || { echo "Missing {{ flux_age_key }}"; exit 1; }
+    [ -f "{{ sops_age_key_file }}" ] || { echo "Missing {{ sops_age_key_file }}"; exit 1; }
     {
       echo "---"; echo "apiVersion: v1"; echo "kind: Secret"
       echo "metadata:"; echo "  name: sops-age"; echo "  namespace: flux-system"
       echo "type: Opaque"; echo "stringData:"; echo "  age.agekey: |"
-      sed 's/^/    /' "{{ flux_age_key }}"
+      sed 's/^/    /' "{{ sops_age_key_file }}"
     } > "{{ sops_age_enc }}"
-    SOPS_AGE_KEY_FILE="{{ flux_age_key }}" sops --encrypt --in-place "{{ sops_age_enc }}"
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops --encrypt --in-place "{{ sops_age_enc }}"
     echo "Encrypted {{ sops_age_enc }} -- uncomment it in kustomization.yaml"
 
 [doc("Generate + encrypt the flux-system git credentials secret (prompts)")]
@@ -51,7 +48,7 @@ secret-flux-git:
       echo "type: Opaque"; echo "stringData:"
       echo "  username: ${u}"; echo "  password: ${p}"
     } > "{{ flux_git_enc }}"
-    SOPS_AGE_KEY_FILE="{{ flux_age_key }}" sops --encrypt --in-place "{{ flux_git_enc }}"
+    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops --encrypt --in-place "{{ flux_git_enc }}"
     echo "Encrypted {{ flux_git_enc }} -- uncomment it in kustomization.yaml"
 
 [doc("Generate both secrets")]

@@ -9,8 +9,8 @@ resources:
   # Generate them with edatw-lab's flux age key (just secrets), then uncomment.
   # Until then the Terraform gitops-edatw-lab module is the source of these
   # secrets (flux-system/sops-age, flux-system/flux-system git credentials).
-  # - ./secret-sops-age.enc.yaml
-  # - ./secret-flux-git-credentials.enc.yaml
+  - ./secret-sops-age.enc.yaml
+  - ./secret-flux-git-credentials.enc.yaml
 
 # Inherit labels from base
 labels:
