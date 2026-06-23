@@ -5,4 +5,4 @@
 creation_rules:
   - path_regex: \.enc\.yaml$
     encrypted_regex: '^(data|stringData)$'
-    age: age1REPLACE_WITH_EDATW_LAB_FLUX_PUBLIC_KEY
+    age: age142yu9a74xm8vfls25jvmdvw0c3yrcsvdht0ah9yu8cysya2qqyaqmg6y0a

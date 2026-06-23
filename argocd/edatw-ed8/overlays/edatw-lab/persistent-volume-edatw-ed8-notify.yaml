@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    annotations:
+        pv.kubernetes.io/provisioned-by: smb.csi.k8s.io
+    name: edatw-ed8-notify
+spec:
+    storageClassName: edatw-eda-smb
+    capacity:
+        storage: 100Gi
+    accessModes:
+        - ReadWriteMany
+    persistentVolumeReclaimPolicy: Retain
+    mountOptions:
+        - dir_mode=0750
+        - file_mode=0640
+        - uid=999
+        - gid=999
+    csi:
+        driver: smb.csi.k8s.io
+        readOnly: false
+        volumeHandle: ENC[AES256_GCM,data:CRvinlsVqW8Q+pz7qb3ENsT8TwpKT0q2gxBKoyw=,iv:zaZPLAn7jKfNsGuO6gypD6eXvxNSBbrUAZp+JdJ2Kjk=,tag:FmCGa/onEYJKAcVQV/9rAA==,type:str]
+        volumeAttributes:
+            source: ENC[AES256_GCM,data:eJrxFX8RcWDd01VLT6UVeH9XLxYcuf0HzynjgCb9bxefwpA=,iv:w9i2WZCN83q2wG2iKJHmNo7ao/eY0B6hqElB5/ggIo0=,tag:4ct3r5F7WlNUmR7d9i5pJQ==,type:str]
+        nodeStageSecretRef:
+            name: ed8-creds
+            namespace: edatw-ed8
+    claimRef:
+        name: edatw-ed8-notify
+        namespace: edatw-ed8
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBBOVFCaHJRelY5S25BaGhT
+            RHVjNVUwWTI1THF5QThWQThibUZ3Zld0MVJ3CmRSeDJ2QVBQaURzNVF0a3N1VWpj
+            OVBpSm1wRDNtWTgwVDhUZlRpbFh6QkUKLS0tIGZHUEh3ci95SkVGRHRDbXlSNEhR
+            VEczYysvMWJMVjA4RURYWGpJUmNVeGMK9DbG0tzsZwiDbY/yFJ6BVvJQM1F2Otvd
+            XtAb1MoRliKHFRU9haYr5aQ3FZMAFPs3cANhhgV6BgE32cry74AEWw==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1nf9ewj7cepndennpcxz77sun7fecph4wqgfkusr53vnkv7g0sedq8qj22d
+    encrypted_regex: ^(volumeHandle|source)$
+    lastmodified: "2026-06-18T01:36:24Z"
+    mac: ENC[AES256_GCM,data:oZ6lsmNuucbVN3hAPcT2Esv8Cnutcjqn9oWZwfl5tTKNj4ZCSjL52wu4qie3rVgAFz/1BMDHvpyknddzUzaisq8t7jCvj08y0CZyjkQEgoE8eji4yCalez/iOA1TIZCfSkl+hNjJ8TFCxZnfxWQSVVpXRGlmJjVc0RFin0lMgNs=,iv:riNjC0W264hC/CQr0wYFAW5QEnTX9ttMl9DreFri4y4=,tag:JQIuPhiM337ZPalZarYR7g==,type:str]
+    version: 3.13.1

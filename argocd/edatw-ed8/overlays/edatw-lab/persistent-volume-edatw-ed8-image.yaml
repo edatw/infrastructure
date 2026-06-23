@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    annotations:
+        pv.kubernetes.io/provisioned-by: smb.csi.k8s.io
+    name: edatw-ed8-image
+spec:
+    storageClassName: edatw-eda-smb
+    capacity:
+        storage: 100Gi
+    accessModes:
+        - ReadWriteMany
+    persistentVolumeReclaimPolicy: Retain
+    mountOptions:
+        - dir_mode=0750
+        - file_mode=0640
+        - uid=33
+        - gid=33
+    csi:
+        driver: smb.csi.k8s.io
+        readOnly: false
+        volumeHandle: ENC[AES256_GCM,data:3QlBv8eDX/NaqSN5fRCoinj8VHeoL6KuW2rEjw==,iv:Zj+gSOMGyWl763T4wOUYL62VfqCmorfFCeqryJe1h28=,tag:smyY8Xi2ogzEZadcQs/FWg==,type:str]
+        volumeAttributes:
+            source: ENC[AES256_GCM,data:Ezwevqo/mT+GHPrcVZBDtCkZ+JfMQc3+MM7k/Vhx7ovWJw==,iv:J3a7bDMOusBGYZA2Pupg7LpNB3JSXB0Ia+uK3E+ex4c=,tag:FBnb/huM/YCnXcmn3jPr0Q==,type:str]
+        nodeStageSecretRef:
+            name: ed8-creds
+            namespace: edatw-ed8
+    claimRef:
+        name: edatw-ed8-image
+        namespace: edatw-ed8
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBDdU8wOG9MRXJQV2RlSDNi
+            S01HMTN6TTBpS2h4Q3RoL3ltdTZYeW03d0NRCjFzYzFVR2d4MHdCVHYzRVRXWkdo
+            OWV5bDFYSmwyMENXb0VXMkxEcm5wK28KLS0tIDN1d2YrbHVsZlpBcjZGUjBrZllp
+            a3RBRkcrMnN0TC9QMFdNdW5uRnkxYVkKJHkqLpqL9Q9mQMU2VVaPmEDQ7+CGTQDr
+            cPcP/MhlWMzXmFm/Vkms5IE09vxmnsIun/u5udm4pzIbfxau43ef0A==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1nf9ewj7cepndennpcxz77sun7fecph4wqgfkusr53vnkv7g0sedq8qj22d
+    encrypted_regex: ^(volumeHandle|source)$
+    lastmodified: "2026-06-18T01:36:24Z"
+    mac: ENC[AES256_GCM,data:wYtlCI01mC19OsdEBnC4OEPLVuwqpCH6z7B1wmrL2FZjBdPO07jj/uQY2Co5MMrHv48zYHw7/NW9/t+uWPXGFQQwaKyIuLFECZSueXy4BYBKiqMPlVxKNe9a/RGGP1QZC41k9LthwefLVUWeZTXIhryULl8QlklIVpejJYRzIBc=,iv:9zflKmJxJDpcdYbANMo5EZdSi0Ub2V2NeH8x7yJHxvs=,tag:pvn/yprc3Fma8ZXHjkGZ7A==,type:str]
+    version: 3.13.1

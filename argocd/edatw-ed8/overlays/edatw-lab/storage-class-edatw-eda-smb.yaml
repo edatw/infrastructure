@@ -1,0 +1,33 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+    name: edatw-eda-smb
+provisioner: smb.csi.k8s.io
+parameters:
+    source: ENC[AES256_GCM,data:3B6jqE4x/gN1XVxv9BBOAg==,iv:8wuksgxN9A66kvYSZy0sGva+9P1v5+a9sq9danN2BAc=,tag:CCEu+6G6HRxS14i0hkeZsQ==,type:str]
+    csi.storage.k8s.io/provisioner-secret-name: ed8-creds
+    csi.storage.k8s.io/provisioner-secret-namespace: edatw-ed8
+    csi.storage.k8s.io/node-stage-secret-name: ed8-creds
+    csi.storage.k8s.io/node-stage-secret-namespace: edatw-ed8
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+mountOptions:
+    - dir_mode=0777
+    - file_mode=0777
+    - uid=33
+    - gid=33
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB1bHl2cTdiQTJFNFhtbDFm
+            WEJYbHl5NUEwL3N0M1pQRWlCN003cGhGYldNClkrT1dSU3ZIdmxobVlLZDdBbTNj
+            OEhHbVY4L2JqYU1oenV2L0JiZWUycFkKLS0tIDlLRUtkMm5ldStaZ0FaQVU3YW5Y
+            NmpPQVhNL056S08rREN6bUF2TjhGdncKrzY+Jp33hesO6q/6go+/ZeBt5WtJDyRB
+            Mx+SjPMb8C2aueqiMAkdfM2NNj0uuHlhag6PED2+aV+Zu7IVikP2FA==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1nf9ewj7cepndennpcxz77sun7fecph4wqgfkusr53vnkv7g0sedq8qj22d
+    encrypted_regex: ^(source)$
+    lastmodified: "2026-06-18T01:36:24Z"
+    mac: ENC[AES256_GCM,data:oux/UrISf4CHLrhWx5nzQR4ws/P/niJxVv0GSiea3z72JnTygtdHYdGEBI971L8nsQHbHkeQjAQVrkrMCLiC2H95Pam8No42SU8oOyJfJIJG01qVWwn9dr+siC4IBiwT0tVwuU/C6nRWrBZ9VEGaQjF2VcfUzN4w8MSGop7IfpM=,iv:tPqf4/6eHU4Qlb0NsX2/XoqdEr7m3iMDA3yut0sIzno=,tag:plvYLMQi7tCv3+2RAppMVw==,type:str]
+    version: 3.13.1

@@ -1,0 +1,34 @@
+---
+# Flux Kustomization for ArgoCD projects (AppProject + Applications).
+# Applies the edatw AppProject and its Applications onto the ArgoCD install
+# managed by kustomization-argocd.yaml. ArgoCD then reconciles the Applications
+# itself, so this Kustomization does not wait on their sync status.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: argocd-projects
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 10m
+  prune: true
+  # ArgoCD owns Application reconciliation; only confirm the CRs applied.
+  wait: false
+
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+
+  path: ./flux/overlays/argocd-projects/edatw-lab
+
+  # Dependencies: the ArgoCD install (CRDs + control plane) must be ready first.
+  dependsOn:
+    - name: argocd
+
+  healthChecks:
+    # The AppProject must exist before its Applications are admitted.
+    - apiVersion: argoproj.io/v1alpha1
+      kind: AppProject
+      name: edatw
+      namespace: argocd

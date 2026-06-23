@@ -2,43 +2,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
+# ArgoCD projects overlay for edatw-lab: the AppProject + Applications only.
+# The ArgoCD install (HelmRelease, namespace, KSOPS sops-age secret) lives in
+# the sibling argocd/edatw-lab overlay; this overlay depends on it at runtime.
 resources:
-  - ../../../base/argocd
-  # ArgoCD Projects (AppProject only, Applications selected below)
+  # ArgoCD Projects (AppProject + Applications)
   - ../../../base/argocd-projects/edatw
-  # Cluster-specific resources: ArgoCD KSOPS age secret (argocd/sops-age).
-  # Generate it with edatw-lab's flux age key (just argocd-ksops), then uncomment.
-  # - secret-sops-age.enc.yaml
 
 labels:
   - pairs:
       app.kubernetes.io/instance: edatw-lab
       app.kubernetes.io/environment: production
 
-# Patch HelmRelease to mount the SOPS Age key and configure KSOPS
+# Patch edatw application paths (from github.com/edatw/infrastructure)
 patches:
-  - patch: |-
-      - op: add
-        path: /spec/values/repoServer/env
-        value:
-          - name: SOPS_AGE_KEY_FILE
-            value: /home/argocd/.config/sops/age/keys.txt
-      - op: add
-        path: /spec/values/repoServer/volumes/-
-        value:
-          name: sops-age
-          secret:
-            secretName: sops-age
-      - op: add
-        path: /spec/values/repoServer/volumeMounts/-
-        value:
-          name: sops-age
-          mountPath: /home/argocd/.config/sops/age
-          readOnly: true
-    target:
-      kind: HelmRelease
-      name: argocd
-  # Patch edatw application paths (from github.com/edatw/infrastructure)
   - patch: |-
       - op: replace
         path: /spec/source/path

@@ -1,0 +1,60 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ArgoCD deployment (install) overlay for edatw-lab.
+# Owns the ArgoCD install (HelmRelease + namespace) from base/argocd and the
+# argocd/sops-age secret that the repo-server KSOPS mount consumes. The
+# AppProjects/Applications live in the sibling argocd-projects/edatw-lab overlay.
+resources:
+  - ../../../base/argocd
+  # Cluster-specific resource: ArgoCD KSOPS age secret (argocd/sops-age),
+  # consumed by the repoServer SOPS mount patch below. Generate it with
+  # edatw-lab's flux age key (just argocd-ksops), then uncomment.
+  - secret-sops-age.enc.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: edatw-lab
+      app.kubernetes.io/environment: production
+
+# edatw-lab deltas to the shared base (applied at the kustomize layer):
+patches:
+  # Pin the argo-cd chart version, overriding the base's floating "^9.1.0"
+  # range. Bumped to latest stable by `just bump-argocd` (cluster justfile).
+  # (ServiceMonitors are already disabled in the base values.)
+  - patch: |-
+      - op: replace
+        path: /spec/chart/spec/version
+        value: "9.5.21"
+    target:
+      kind: HelmRelease
+      name: argocd
+  # Mount the SOPS Age key into the repo-server so KSOPS can decrypt
+  # SOPS-encrypted manifests in the ArgoCD Applications it renders.
+  - patch: |-
+      - op: add
+        path: /spec/values/repoServer/env
+        value:
+          - name: SOPS_AGE_KEY_FILE
+            value: /home/argocd/.config/sops/age/keys.txt
+      - op: add
+        path: /spec/values/repoServer/volumes/-
+        value:
+          name: sops-age
+          secret:
+            secretName: sops-age
+      - op: add
+        path: /spec/values/repoServer/volumeMounts/-
+        value:
+          name: sops-age
+          mountPath: /home/argocd/.config/sops/age
+          readOnly: true
+    target:
+      kind: HelmRelease
+      name: argocd
+
+# TODO(edatw-lab): the base still ships the placeholder domain `argocd.local`
+# (global.domain + server.config.url) and server.service is ClusterIP with no
+# ingress. Set a real domain and exposure (e.g. a cloudflared tunnel rule under
+# terraform/environments/cloudflared-edatw) before relying on external access.
