@@ -22,7 +22,7 @@ patches:
         value: argocd/edatw-cloudflared/overlays/edatw-lab
       - op: replace
         path: /spec/source/targetRevision
-        value: v1.0.0
+        value: main
     target:
       kind: Application
       name: edatw-cloudflared
@@ -32,17 +32,27 @@ patches:
         value: argocd/edatw-ed8/overlays/edatw-lab
       - op: replace
         path: /spec/source/targetRevision
-        value: v1.0.0
+        value: main
     target:
       kind: Application
       name: edatw-ed8
   - patch: |-
       - op: replace
         path: /spec/source/path
+        value: argocd/edatw-openclaw/overlays/edatw-lab
+      - op: replace
+        path: /spec/source/targetRevision
+        value: main
+    target:
+      kind: Application
+      name: edatw-openclaw
+  - patch: |-
+      - op: replace
+        path: /spec/source/path
         value: argocd/edatw-salary-mailman/overlays/edatw-lab
       - op: replace
         path: /spec/source/targetRevision
-        value: v1.0.0
+        value: main
     target:
       kind: Application
       name: edatw-salary-mailman
