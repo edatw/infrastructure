@@ -66,12 +66,12 @@ resources:
   # Install before kagent — the controller points at its gRPC gateway. v0.1.0,
   # in-cluster TLS only (cert-manager server cert; gateway auth disabled, access
   # via NetworkPolicy). See flux/base/openshell for caveats.
-  # - kustomization-openshell.yaml
+  - kustomization-openshell.yaml
 
   # kagent: Kubernetes-native AI agent platform (depends on cilium + openebs +
   # openshell). crds = CRDs + namespace + OCI HelmRepository (flux/base/kagent-crds);
   # kagent = controller/UI + bundled persistent PostgreSQL (depends on crds).
   # Default model provider is Ollama (keyless); ensure Ollama is reachable at the
   # configured config.host (flux/base/kagent) before agents can run.
-  # - kustomization-kagent-crds.yaml
-  # - kustomization-kagent.yaml
+  - kustomization-kagent-crds.yaml
+  - kustomization-kagent.yaml
