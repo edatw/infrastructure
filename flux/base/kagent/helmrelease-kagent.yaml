@@ -1,0 +1,78 @@
+---
+# kagent controller + UI.
+# Database: bundled PostgreSQL with a persistent PVC — this is where kagent
+# persists agent SESSIONS and state. (Bundled is dev/eval grade; switch to an
+# external PostgreSQL via database.postgres.url for production, and enable
+# vectorEnabled + a pgvector-capable image for long-term vector memory.)
+# Provider: Anthropic by default; the controller reads the API key from the
+# kagent-anthropic Secret supplied by the edatw-lab overlay.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kagent
+  namespace: kagent
+spec:
+  interval: 30m
+  timeout: 10m
+  dependsOn:
+    - name: kagent-crds
+  chart:
+    spec:
+      chart: kagent
+      version: "0.9.9"
+      sourceRef:
+        kind: HelmRepository
+        name: kagent
+        namespace: flux-system
+      interval: 12h
+  install:
+    crds: Skip
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    crds: Skip
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+    cleanupOnFail: true
+  values:
+    controller:
+      # AgentHarness (openshell runtime) -> OpenShell gateway over TLS gRPC,
+      # verifying the gateway cert against the in-cluster CA. TLS only: the
+      # gateway runs with gateway auth disabled (no mTLS client cert / token);
+      # access control rests on the NetworkPolicy.
+      env:
+        - name: OPENSHELL_GATEWAY_URL
+          value: openshell.openshell.svc.cluster.local:8080
+        - name: OPENSHELL_TLS_CA_FILE
+          value: /etc/openshell/tls/ca.crt
+      # ca.crt from the cert-manager openshell-ca secret (certificate-openshell-ca.yaml).
+      volumes:
+        - name: openshell-ca
+          secret:
+            secretName: openshell-ca
+            items:
+              - key: ca.crt
+                path: ca.crt
+      volumeMounts:
+        - name: openshell-ca
+          mountPath: /etc/openshell/tls
+          readOnly: true
+    database:
+      postgres:
+        bundled:
+          enabled: true
+          # Persistent session/state storage on the cluster storage class.
+          storage: 10Gi
+          storageClassName: openebs-hostpath
+    providers:
+      # Default ModelConfig uses Ollama (local models, no API key).
+      # NOTE: Ollama is not deployed by this stack — point config.host at a
+      # reachable in-cluster Ollama endpoint (deploy one, or set an external
+      # host). Agents stay un-runnable until Ollama is reachable.
+      default: ollama
+      ollama:
+        model: "llama3.2"
+        config:
+          host: ollama.ollama.svc.cluster.local:11434

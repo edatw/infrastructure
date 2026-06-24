@@ -1,0 +1,17 @@
+# kagent overlay - edatw-lab
+# Generates the SOPS-encrypted LLM provider API key kagent's ModelConfig reads:
+#   - kagent-anthropic (kagent/kagent-anthropic) : ANTHROPIC_API_KEY
+# Switch the provider by editing providers.default in the base HelmRelease and
+# renaming the secret/key to match that provider's apiKeySecretRef.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Shared makefiles SOPS module: provides the Flux age key path (sops_age_key_file)
+# and generic sops-* recipes. Reuses the edatw-lab Flux age key.
+sops_env_name := "flux-edatw-lab"
+
+import '../../../../makefiles/sops.just'
+
+[doc("List recipes")]
+default:
+    @just --list --unsorted

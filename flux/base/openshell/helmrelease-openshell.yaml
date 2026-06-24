@@ -1,0 +1,59 @@
+---
+# OpenShell gateway (kagent AgentHarness runtime: openshell).
+# The kagent controller reaches this over TLS gRPC at
+# openshell.openshell.svc.cluster.local:8080 (see flux/base/kagent).
+#
+# AUTH MODEL (in-cluster TLS only):
+#  - TLS ENABLED with a cert-manager-issued server cert (certificate-server.yaml);
+#    the controller verifies it against the in-cluster CA (OPENSHELL_TLS_CA_FILE).
+#  - Gateway auth DISABLED (disableGatewayAuth) — no mTLS client cert and no
+#    bearer token. The link is encrypted; access control rests on the
+#    NetworkPolicy. (OpenShell's openshell-backend reads a static token once and
+#    its chart underexposes OIDC, so enforced auth isn't a clean fit at v0.1.0;
+#    revisit when the chart matures.)
+#
+# OTHER CAVEATS (v0.1.0, verify on cluster):
+#  - ClusterIP service (default chart is NodePort) — kagent talks in-cluster.
+#  - Image tag is `latest` (chart default; no version tag published for v0.1.0)
+#    and the SQLite DB at /var/openshell has no chart persistence knob, so
+#    OpenShell state is effectively ephemeral. Revisit when the chart matures.
+#  - The SSH handshake secret (openshell-ssh-handshake) is normally created by
+#    the CLI bootstrap; if the gateway requires it, add a generated HMAC secret.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: openshell
+  namespace: openshell
+spec:
+  interval: 30m
+  timeout: 10m
+  chart:
+    spec:
+      chart: openshell
+      version: "0.1.0"
+      sourceRef:
+        kind: HelmRepository
+        name: openshell
+        namespace: flux-system
+      interval: 12h
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+    cleanupOnFail: true
+  values:
+    service:
+      type: ClusterIP
+    server:
+      sandboxNamespace: openshell
+      # In-cluster TLS via the cert-manager server cert; no mTLS client cert
+      # (the controller authenticates with a bearer token instead).
+      disableTls: false
+      disableGatewayAuth: true
+      grpcEndpoint: "https://openshell.openshell.svc.cluster.local:8080"
+      tls:
+        certSecretName: openshell-server-tls

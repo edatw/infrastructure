@@ -1,0 +1,12 @@
+---
+# OpenShell OCI Helm registry.
+# Chart: oci://ghcr.io/kagent-dev/openshell/charts/openshell
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: openshell
+  namespace: flux-system
+spec:
+  type: oci
+  url: oci://ghcr.io/kagent-dev/openshell/charts
+  interval: 24h

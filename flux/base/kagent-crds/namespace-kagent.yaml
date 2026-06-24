@@ -1,0 +1,15 @@
+---
+# Namespace for kagent (controller, UI, bundled PostgreSQL, agents/harnesses).
+# Created with the CRDs so the HelmRelease storage namespace exists first.
+# Pod Security: baseline — the controller and bundled PostgreSQL run non-root,
+# but agent/harness sandbox workloads may need more than restricted allows.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kagent
+  labels:
+    app.kubernetes.io/name: kagent
+    app.kubernetes.io/managed-by: flux
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: baseline
+    pod-security.kubernetes.io/warn: baseline

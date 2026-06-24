@@ -1,0 +1,12 @@
+---
+# kagent OCI Helm registry (shared by the kagent-crds and kagent HelmReleases).
+# Charts: oci://ghcr.io/kagent-dev/kagent/helm/{kagent-crds,kagent}
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: kagent
+  namespace: flux-system
+spec:
+  type: oci
+  url: oci://ghcr.io/kagent-dev/kagent/helm
+  interval: 24h

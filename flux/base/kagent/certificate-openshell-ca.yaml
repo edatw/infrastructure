@@ -1,0 +1,22 @@
+---
+# CA-only leaf in the kagent namespace: its Secret carries ca.crt for the
+# OpenShell in-cluster CA, which the controller mounts to verify the gateway's
+# TLS cert (OPENSHELL_TLS_CA_FILE). The tls.crt/tls.key are unused.
+# Signed by the openshell-ca ClusterIssuer (from flux/base/openshell).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: openshell-ca
+  namespace: kagent
+spec:
+  secretName: openshell-ca
+  commonName: openshell-ca-bundle
+  dnsNames:
+    - openshell-ca-bundle.kagent.svc
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: openshell-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

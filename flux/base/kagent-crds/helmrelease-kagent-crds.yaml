@@ -1,0 +1,31 @@
+---
+# kagent CRDs (Agent, ModelConfig, AgentHarness, RemoteMCPServer, ...).
+# Installed ahead of the operator so the controller can reconcile the CRs.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: kagent-crds
+  namespace: kagent
+spec:
+  interval: 30m
+  timeout: 10m
+  chart:
+    spec:
+      chart: kagent-crds
+      version: "0.9.9"
+      sourceRef:
+        kind: HelmRepository
+        name: kagent
+        namespace: flux-system
+      interval: 12h
+  install:
+    crds: CreateReplace
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    crds: CreateReplace
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+    cleanupOnFail: true

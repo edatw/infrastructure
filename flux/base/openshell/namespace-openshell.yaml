@@ -1,0 +1,14 @@
+---
+# Namespace for OpenShell (the AgentHarness sandbox runtime/gateway).
+# Also the sandboxNamespace where OpenShell launches agent sandbox pods, which
+# may need elevated privileges (sandbox/gVisor runtimes) -> privileged PSS.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshell
+  labels:
+    app.kubernetes.io/name: openshell
+    app.kubernetes.io/managed-by: flux
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

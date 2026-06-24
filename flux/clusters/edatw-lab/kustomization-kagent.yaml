@@ -1,0 +1,41 @@
+---
+# Flux Kustomization for kagent (edatw-lab)
+# Installs the kagent controller + UI with a bundled persistent PostgreSQL
+# (session/state storage). Sources the EDA-repo base + the SOPS-encrypted LLM
+# provider key via the edatw-lab overlay.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kagent
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 15m
+  prune: true
+  wait: true
+
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
+
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+
+  path: ./flux/overlays/kagent/edatw-lab
+
+  # Dependencies: CRDs first; openebs provides the storage class for the
+  # bundled PostgreSQL PVC; openshell is the AgentHarness gateway the controller
+  # points at (install it before kagent).
+  dependsOn:
+    - name: kagent-crds
+    - name: openebs
+    - name: openshell
+
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: kagent
+      namespace: kagent

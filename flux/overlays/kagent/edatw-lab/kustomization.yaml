@@ -1,0 +1,15 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# edatw-lab overlay for kagent: the shared base (HelmReleases + namespace) plus
+# the cluster's SOPS-encrypted LLM provider API key.
+resources:
+  - ../../../base/kagent
+  # Default provider is Ollama (no API key). Add a provider secret here only if
+  # you switch to a keyed provider (anthropic/openAI/etc.).
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: edatw-lab
+      app.kubernetes.io/environment: production

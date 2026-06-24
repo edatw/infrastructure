@@ -1,0 +1,10 @@
+---
+# CA issuer that signs the OpenShell gateway server cert and the kagent-side
+# CA bundle leaf. Reads the CA key from the cert-manager namespace.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: openshell-ca
+spec:
+  ca:
+    secretName: openshell-ca
