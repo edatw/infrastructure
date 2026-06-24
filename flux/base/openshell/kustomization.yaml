@@ -9,6 +9,7 @@ resources:
   - certificate-ca.yaml
   - clusterissuer-ca.yaml
   - certificate-server.yaml
+  - certificate-client-ca.yaml
   - helmrepository-openshell.yaml
   - helmrelease-openshell.yaml
 

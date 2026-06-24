@@ -13,12 +13,19 @@ spec:
   prune: true
   wait: true
 
+  # SOPS-encrypted SSH handshake secret lives in the edatw-lab overlay.
+  decryption:
+    provider: sops
+    secretRef:
+      name: sops-age
+
   sourceRef:
     kind: GitRepository
     name: flux-system
     namespace: flux-system
 
-  path: ./flux/base/openshell
+  # edatw-lab overlay: wraps ./flux/base/openshell + the SOPS handshake secret.
+  path: ./flux/overlays/openshell/edatw-lab
 
   # cert-manager issues the in-cluster TLS server cert + CA.
   dependsOn:

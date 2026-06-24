@@ -1,0 +1,34 @@
+# OpenShell overlay - edatw-lab
+# Generates the SOPS-encrypted SSH handshake secret the gateway consumes:
+#   - openshell-ssh-handshake (openshell/openshell-ssh-handshake) : NSSH1 HMAC key
+# The chart expects a Secret with a `secret` key holding a hex-encoded HMAC key
+# (normally created by the openshell CLI bootstrap; a Flux install must provide
+# it here). Rotating the key invalidates in-flight SSH handshakes.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Shared makefiles SOPS module: provides the Flux age key path (sops_age_key_file)
+# and generic sops-* recipes. Reuses the edatw-lab Flux age key.
+sops_env_name := "flux-edatw-lab"
+
+import '../../../../makefiles/sops.just'
+
+handshake_enc := "secret-ssh-handshake.enc.yaml"
+
+[doc("List recipes")]
+default:
+    @just --list --unsorted
+
+[doc("Generate + encrypt the openshell/openshell-ssh-handshake secret (random HMAC)")]
+secret-ssh-handshake:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    hmac="$(openssl rand -hex 32)"
+    {
+      echo "---"; echo "apiVersion: v1"; echo "kind: Secret"
+      echo "metadata:"; echo "  name: openshell-ssh-handshake"; echo "  namespace: openshell"
+      echo "type: Opaque"; echo "stringData:"
+      echo "  secret: ${hmac}"
+    } > "{{ handshake_enc }}"
+    sops --encrypt --in-place "{{ handshake_enc }}"
+    echo "Encrypted {{ handshake_enc }} -- commit and let Flux reconcile."
