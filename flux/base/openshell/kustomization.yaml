@@ -4,6 +4,14 @@ kind: Kustomization
 
 resources:
   - namespace-openshell.yaml
+  # Shared in-cluster PKI (cert-manager): self-signed root -> CA -> gateway
+  # server + client certs. The CA is a ClusterIssuer so kagent (another
+  # namespace) can chain to it; the official chart's own PKI can't span namespaces.
+  - clusterissuer-selfsigned.yaml
+  - certificate-ca.yaml
+  - clusterissuer-ca.yaml
+  - certificate-server.yaml
+  - certificate-client.yaml
   - helmrepository-openshell.yaml
   - helmrelease-openshell.yaml
 

@@ -20,11 +20,12 @@ spec:
 
   path: ./flux/base/openshell
 
-  # Dependencies: agent-sandbox provides the Sandbox CRD the compute driver uses;
-  # openebs provides the default StorageClass for the gateway's 1Gi PVC. PKI is
-  # self-contained (chart generate-certs hook), so no cert-manager dependency.
+  # Dependencies: cert-manager issues the in-cluster PKI (shared CA ClusterIssuer);
+  # agent-sandbox provides the Sandbox CRD the compute driver uses; openebs
+  # provides the default StorageClass for the gateway's 1Gi PVC.
   dependsOn:
     - name: cilium
+    - name: cert-manager
     - name: agent-sandbox
     - name: openebs
 

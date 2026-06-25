@@ -1,0 +1,24 @@
+---
+# OpenShell gateway client certificate (gateway <-> sandbox mTLS).
+# The gateway reads this secret (OPENSHELL_CLIENT_TLS_SECRET_NAME via
+# server.tls.clientTlsSecretName) and injects client TLS material into the
+# sandbox pods it provisions. Signed by the shared openshell-ca ClusterIssuer.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: openshell-client-tls
+  namespace: openshell
+spec:
+  secretName: openshell-client-tls
+  commonName: openshell-client
+  usages:
+    - client auth
+    - digital signature
+    - key encipherment
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: openshell-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

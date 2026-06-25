@@ -9,13 +9,14 @@
 # (sandboxes.agents.x-k8s.io) — requires the agent-sandbox controller installed
 # first (flux/base/agent-sandbox; this Kustomization dependsOn it).
 #
-# PKI: the chart's generate-certs pre-install/upgrade hook (pkiInitJob, enabled
-# by default) creates the server + client TLS Secrets in-cluster. The client-CA
-# the server verifies against is taken from the server TLS Secret's ca.crt, so no
-# separate cert-manager certs, ClusterIssuers, or SSH handshake secret are needed.
+# PKI: provided by cert-manager (see the Certificate/ClusterIssuer manifests in
+# this base), NOT the chart's own modes (pkiInitJob + certManager both disabled).
+# We need a shared CA ClusterIssuer so kagent (a different namespace) can chain to
+# it to verify the gateway; the chart's PKI keeps its CA inside this namespace.
+# The server TLS secret's ca.crt doubles as the client-CA bundle (clientCaSecretName).
 #
 # AUTH MODEL (in-cluster TLS only):
-#  - TLS ENABLED (chart-issued server cert; the gateway binds 0.0.0.0).
+#  - TLS ENABLED (cert-manager server cert; the gateway binds 0.0.0.0).
 #  - Gateway auth DISABLED (disableGatewayAuth) — no mTLS client cert required;
 #    the link is encrypted and access control rests on the NetworkPolicy.
 #    Flip to false (+ provision a client cert for kagent) to enforce mTLS.
@@ -53,3 +54,14 @@ spec:
       # In-cluster TLS on; gateway auth off (no client cert) — access via NetworkPolicy.
       disableTls: false
       disableGatewayAuth: true
+      tls:
+        # cert-manager-issued secrets (this base). The server cert's ca.crt is
+        # reused for the client-CA mount, so no separate client-CA secret.
+        certSecretName: openshell-server-tls
+        clientCaSecretName: openshell-server-tls
+        clientTlsSecretName: openshell-client-tls
+    # PKI is provided by cert-manager, not the chart's own modes.
+    pkiInitJob:
+      enabled: false
+    certManager:
+      enabled: false

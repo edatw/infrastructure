@@ -1,0 +1,31 @@
+---
+# OpenShell gateway server certificate (in-cluster TLS).
+# Consumed by the HelmRelease via server.tls.certSecretName. The secret's ca.crt
+# is also reused as the client-CA bundle (server.tls.clientCaSecretName).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: openshell-server-tls
+  namespace: openshell
+spec:
+  secretName: openshell-server-tls
+  commonName: openshell.openshell.svc.cluster.local
+  dnsNames:
+    - openshell.openshell.svc.cluster.local
+    - openshell.openshell.svc
+    - openshell.openshell
+    - openshell
+    - localhost
+  ipAddresses:
+    - 127.0.0.1
+  usages:
+    - server auth
+    - digital signature
+    - key encipherment
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: openshell-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

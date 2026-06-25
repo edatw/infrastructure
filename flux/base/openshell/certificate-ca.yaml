@@ -1,0 +1,24 @@
+---
+# OpenShell in-cluster CA. Stored in the cert-manager namespace so the
+# openshell-ca ClusterIssuer (cluster resource namespace) can sign from it.
+# This shared CA is what makes cross-namespace trust possible: the gateway's
+# server/client certs (openshell ns) and the kagent-side CA bundle (kagent ns)
+# all chain to it. The official chart's own PKI modes can't span namespaces.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: openshell-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: openshell-ca
+  secretName: openshell-ca
+  duration: 87600h # 10y
+  renewBefore: 720h
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: openshell-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io

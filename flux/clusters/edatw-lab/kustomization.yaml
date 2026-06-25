@@ -67,9 +67,10 @@ resources:
   - kustomization-agent-sandbox.yaml
 
   # OpenShell: AgentHarness sandbox runtime/gateway (depends on cilium +
-  # agent-sandbox + openebs). Install before kagent — the controller points at
-  # its gRPC gateway. Official chart (nvidia/openshell/helm-chart 0.0.42),
-  # in-cluster TLS via the chart's generate-certs PKI hook; gateway auth
+  # cert-manager + agent-sandbox + openebs). Install before kagent — the
+  # controller points at its gRPC gateway. Official chart
+  # (nvidia/openshell/helm-chart 0.0.42), in-cluster TLS via a shared
+  # cert-manager CA (so kagent can trust it cross-namespace); gateway auth
   # disabled, access via NetworkPolicy. See flux/base/openshell.
   - kustomization-openshell.yaml
 
