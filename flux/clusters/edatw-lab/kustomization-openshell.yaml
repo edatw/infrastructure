@@ -13,24 +13,20 @@ spec:
   prune: true
   wait: true
 
-  # SOPS-encrypted SSH handshake secret lives in the edatw-lab overlay.
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age
-
   sourceRef:
     kind: GitRepository
     name: flux-system
     namespace: flux-system
 
-  # edatw-lab overlay: wraps ./flux/base/openshell + the SOPS handshake secret.
-  path: ./flux/overlays/openshell/edatw-lab
+  path: ./flux/base/openshell
 
-  # cert-manager issues the in-cluster TLS server cert + CA.
+  # Dependencies: agent-sandbox provides the Sandbox CRD the compute driver uses;
+  # openebs provides the default StorageClass for the gateway's 1Gi PVC. PKI is
+  # self-contained (chart generate-certs hook), so no cert-manager dependency.
   dependsOn:
     - name: cilium
-    - name: cert-manager
+    - name: agent-sandbox
+    - name: openebs
 
   healthChecks:
     - apiVersion: apps/v1

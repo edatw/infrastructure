@@ -4,12 +4,6 @@ kind: Kustomization
 
 resources:
   - namespace-openshell.yaml
-  # In-cluster PKI (cert-manager): self-signed root -> CA -> gateway server cert.
-  - clusterissuer-selfsigned.yaml
-  - certificate-ca.yaml
-  - clusterissuer-ca.yaml
-  - certificate-server.yaml
-  - certificate-client-ca.yaml
   - helmrepository-openshell.yaml
   - helmrelease-openshell.yaml
 

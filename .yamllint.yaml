@@ -52,3 +52,5 @@ ignore: |
   # Files with SOPS-encrypted field values
   **/persistent-volume-*.yaml
   **/storage-class-*.yaml
+  # Vendored upstream manifests — kept verbatim for clean re-vendoring
+  flux/base/agent-sandbox/manifest.yaml

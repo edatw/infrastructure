@@ -1,6 +1,6 @@
 ---
-# OpenShell OCI Helm registry.
-# Chart: oci://ghcr.io/kagent-dev/openshell/charts/openshell
+# OpenShell official OCI Helm registry (NVIDIA).
+# Chart: oci://ghcr.io/nvidia/openshell/helm-chart
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
@@ -8,5 +8,5 @@ metadata:
   namespace: flux-system
 spec:
   type: oci
-  url: oci://ghcr.io/kagent-dev/openshell/charts
+  url: oci://ghcr.io/nvidia/openshell
   interval: 24h

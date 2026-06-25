@@ -62,10 +62,15 @@ resources:
   # - kustomization-tailscale-operator-config.yaml
   # - kustomization-tailscale-operator.yaml
 
-  # OpenShell: AgentHarness sandbox runtime/gateway (depends on cilium + cert-manager).
-  # Install before kagent — the controller points at its gRPC gateway. v0.1.0,
-  # in-cluster TLS only (cert-manager server cert; gateway auth disabled, access
-  # via NetworkPolicy). See flux/base/openshell for caveats.
+  # Agent Sandbox (kubernetes-sigs/agent-sandbox): controller + Sandbox CRD.
+  # Prerequisite for OpenShell's Kubernetes compute driver (install before openshell).
+  - kustomization-agent-sandbox.yaml
+
+  # OpenShell: AgentHarness sandbox runtime/gateway (depends on cilium +
+  # agent-sandbox + openebs). Install before kagent — the controller points at
+  # its gRPC gateway. Official chart (nvidia/openshell/helm-chart 0.0.42),
+  # in-cluster TLS via the chart's generate-certs PKI hook; gateway auth
+  # disabled, access via NetworkPolicy. See flux/base/openshell.
   - kustomization-openshell.yaml
 
   # kagent: Kubernetes-native AI agent platform (depends on cilium + openebs +

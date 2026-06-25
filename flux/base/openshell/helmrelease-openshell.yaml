@@ -1,24 +1,24 @@
 ---
 # OpenShell gateway (kagent AgentHarness runtime: openshell).
+# Official NVIDIA chart `helm-chart`, pinned to the latest stable 0.0.42 (chart,
+# gateway image and supervisor image are released as a matched set via appVersion).
 # The kagent controller reaches this over TLS gRPC at
 # openshell.openshell.svc.cluster.local:8080 (see flux/base/kagent).
 #
-# AUTH MODEL (in-cluster TLS only):
-#  - TLS ENABLED with a cert-manager-issued server cert (certificate-server.yaml);
-#    the controller verifies it against the in-cluster CA (OPENSHELL_TLS_CA_FILE).
-#  - Gateway auth DISABLED (disableGatewayAuth) — no mTLS client cert and no
-#    bearer token. The link is encrypted; access control rests on the
-#    NetworkPolicy. (OpenShell's openshell-backend reads a static token once and
-#    its chart underexposes OIDC, so enforced auth isn't a clean fit at v0.1.0;
-#    revisit when the chart matures.)
+# COMPUTE DRIVER: Kubernetes. Provisions sandbox pods via the Agent Sandbox CRD
+# (sandboxes.agents.x-k8s.io) — requires the agent-sandbox controller installed
+# first (flux/base/agent-sandbox; this Kustomization dependsOn it).
 #
-# OTHER CAVEATS (v0.1.0, verify on cluster):
-#  - ClusterIP service (default chart is NodePort) — kagent talks in-cluster.
-#  - Image tag is `latest` (chart default; no version tag published for v0.1.0)
-#    and the SQLite DB at /var/openshell has no chart persistence knob, so
-#    OpenShell state is effectively ephemeral. Revisit when the chart matures.
-#  - The SSH handshake secret (openshell-ssh-handshake) is normally created by
-#    the CLI bootstrap; if the gateway requires it, add a generated HMAC secret.
+# PKI: the chart's generate-certs pre-install/upgrade hook (pkiInitJob, enabled
+# by default) creates the server + client TLS Secrets in-cluster. The client-CA
+# the server verifies against is taken from the server TLS Secret's ca.crt, so no
+# separate cert-manager certs, ClusterIssuers, or SSH handshake secret are needed.
+#
+# AUTH MODEL (in-cluster TLS only):
+#  - TLS ENABLED (chart-issued server cert; the gateway binds 0.0.0.0).
+#  - Gateway auth DISABLED (disableGatewayAuth) — no mTLS client cert required;
+#    the link is encrypted and access control rests on the NetworkPolicy.
+#    Flip to false (+ provision a client cert for kagent) to enforce mTLS.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -29,8 +29,8 @@ spec:
   timeout: 10m
   chart:
     spec:
-      chart: openshell
-      version: "0.1.0"
+      chart: helm-chart
+      version: "0.0.42"
       sourceRef:
         kind: HelmRepository
         name: openshell
@@ -50,10 +50,6 @@ spec:
       type: ClusterIP
     server:
       sandboxNamespace: openshell
-      # In-cluster TLS via the cert-manager server cert; no mTLS client cert
-      # (the controller authenticates with a bearer token instead).
+      # In-cluster TLS on; gateway auth off (no client cert) — access via NetworkPolicy.
       disableTls: false
       disableGatewayAuth: true
-      grpcEndpoint: "https://openshell.openshell.svc.cluster.local:8080"
-      tls:
-        certSecretName: openshell-server-tls
