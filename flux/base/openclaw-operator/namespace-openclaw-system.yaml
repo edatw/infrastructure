@@ -1,0 +1,16 @@
+---
+# Namespace for the OpenClaw operator (controller-manager only).
+# The operator runs non-root (UID 65532), drops all capabilities, uses a
+# read-only root filesystem and seccomp RuntimeDefault -> restricted PSS.
+# OpenClawInstance workloads live in their own namespaces (e.g. edatw-openclaw),
+# not here.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openclaw-system
+  labels:
+    app.kubernetes.io/name: openclaw-operator
+    app.kubernetes.io/managed-by: flux
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

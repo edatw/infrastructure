@@ -74,6 +74,13 @@ resources:
   # disabled, access via NetworkPolicy. See flux/base/openshell.
   - kustomization-openshell.yaml
 
+  # OpenClaw operator: reconciles OpenClawInstance/OpenClawSelfConfig/
+  # OpenClawClusterDefaults CRDs (openclaw.rocks/v1alpha1). Controller + CRDs
+  # only (flux/base/openclaw-operator, chart paperclipinc/openclaw-operator);
+  # the agent itself is an OpenClawInstance delivered via ArgoCD into the
+  # edatw-openclaw namespace. Depends on cilium (no webhook -> no cert-manager).
+  - kustomization-openclaw-operator.yaml
+
   # kagent: Kubernetes-native AI agent platform (depends on cilium + openebs +
   # openshell). crds = CRDs + namespace + OCI HelmRepository (flux/base/kagent-crds);
   # kagent = controller/UI + bundled persistent PostgreSQL (depends on crds).

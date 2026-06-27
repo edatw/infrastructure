@@ -1,0 +1,12 @@
+---
+# OpenClaw operator OCI Helm registry (paperclipinc / openclaw.rocks).
+# Chart: oci://ghcr.io/paperclipinc/charts/openclaw-operator
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: openclaw-operator
+  namespace: flux-system
+spec:
+  type: oci
+  url: oci://ghcr.io/paperclipinc/charts
+  interval: 24h
