@@ -79,5 +79,9 @@ resources:
   # kagent = controller/UI + bundled persistent PostgreSQL (depends on crds).
   # Default model provider is Ollama (keyless); ensure Ollama is reachable at the
   # configured config.host (flux/base/kagent) before agents can run.
-  - kustomization-kagent-crds.yaml
-  - kustomization-kagent.yaml
+  #
+  # PARKED: kagent is being replaced by the openclaw-operator + OpenShell stack.
+  # The wiring (kustomization-kagent{,-crds}.yaml), bases (flux/base/kagent{,-crds})
+  # and overlay (flux/overlays/kagent) are kept for reference; uncomment to restore.
+  # - kustomization-kagent-crds.yaml
+  # - kustomization-kagent.yaml
