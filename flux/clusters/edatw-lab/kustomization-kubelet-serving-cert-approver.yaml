@@ -1,0 +1,34 @@
+---
+# Flux Kustomization for kubelet-serving-cert-approver.
+# Auto-approves kubernetes.io/kubelet-serving CSRs (validating each CSR's SANs
+# against the node's known addresses), so kubelet serving certs are issued and
+# rotated without manual approval. Without it, kubelet serving CSRs pile up
+# unapproved and apiserver->kubelet TLS (logs/exec/port-forward, metrics) fails
+# with "tls: internal error" — observed on worker-04 (95 pending CSRs).
+# Applies the ExternalArtifact produced by the source Kustomization.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kubelet-serving-cert-approver
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 5m
+  prune: true
+  wait: true
+
+  sourceRef:
+    kind: ExternalArtifact
+    name: kubelet-serving-cert-approver
+    namespace: flux-system
+
+  path: ./
+
+  dependsOn:
+    - name: kubelet-serving-cert-approver-source
+
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: kubelet-serving-cert-approver
+      namespace: kubelet-serving-cert-approver

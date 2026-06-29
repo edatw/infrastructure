@@ -38,6 +38,13 @@ resources:
   - kustomization-cilium.yaml
   - kustomization-cert-manager.yaml
 
+  # kubelet-serving-cert-approver: auto-approves kubelet-serving CSRs so node
+  # kubelet serving certs are issued/rotated (apiserver->kubelet TLS for
+  # logs/exec/port-forward + metrics). source = shangkuei base GitRepository +
+  # ArtifactGenerator; the consumer applies the resulting ExternalArtifact.
+  - kustomization-kubelet-serving-cert-approver-source.yaml
+  - kustomization-kubelet-serving-cert-approver.yaml
+
   # Storage provisioners (depend on CNI)
   - kustomization-openebs.yaml
   - kustomization-csi-driver-smb.yaml

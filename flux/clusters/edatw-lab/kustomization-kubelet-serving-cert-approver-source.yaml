@@ -1,0 +1,35 @@
+---
+# Flux Kustomization for the kubelet-serving-cert-approver source manifests.
+# Applies shangkuei base/kubelet-serving-cert-approver: the upstream
+# GitRepository (alex1989hu/kubelet-serving-cert-approver, pinned) + the
+# ArtifactGenerator that produces the kubelet-serving-cert-approver
+# ExternalArtifact (deploy/standalone-install.yaml) consumed by the CR below.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kubelet-serving-cert-approver-source
+  namespace: flux-system
+spec:
+  interval: 30m
+  timeout: 5m
+  prune: true
+  wait: false # only applies source CRs; readiness is enforced by the consumer
+
+  sourceRef:
+    kind: GitRepository
+    name: shangkuei-infrastructure
+    namespace: flux-system
+
+  path: ./kubernetes/base/kubelet-serving-cert-approver
+
+  # edatw-lab delta: pin the upstream approver version, overriding the tag carried
+  # by the remote base's GitRepository. Bumped to latest stable by
+  # `just bump-versions` (bump-kubelet-serving-cert-approver).
+  patches:
+    - target:
+        kind: GitRepository
+        name: kubelet-serving-cert-approver
+      patch: |-
+        - op: replace
+          path: /spec/ref/tag
+          value: "v0.10.1"
