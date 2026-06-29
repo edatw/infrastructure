@@ -1,0 +1,119 @@
+# Build the custom OpenClaw + OpenShell CLI image and push to GHCR.
+#
+# Source: argocd/edatw-openclaw/image/Dockerfile (see its README for why a
+# custom image is needed). Image: ghcr.io/edatw/openclaw-openshell.
+#
+# Versioning: OpenClaw and the OpenShell CLI live in *other* repos, so GitHub
+# can't fire a `release` trigger here. Instead a daily schedule resolves the
+# latest of each and builds tag "<openclaw>-os<openshell>" — but only if that tag
+# does not already exist (so it pushes solely when a new version appears).
+# Manual runs (workflow_dispatch) and Dockerfile changes (push) always rebuild.
+name: openclaw-image
+
+on:
+  workflow_dispatch:
+    inputs:
+      openclaw_version:
+        description: "OpenClaw version (no leading v). Empty = latest release."
+        required: false
+        default: ""
+      openshell_version:
+        description: "OpenShell CLI version (no leading v). Empty = latest release."
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "argocd/edatw-openclaw/image/**"
+      - ".github/workflows/openclaw-image.yml"
+  schedule:
+    - cron: "0 6 * * *" # daily 06:00 UTC; rebuilds only on a new upstream version
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: openclaw-image
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/edatw/openclaw-openshell
+  # Add linux/arm64 here if any cluster nodes are arm64 (slower: emulated build).
+  PLATFORMS: linux/amd64
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve versions
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IN_OPENCLAW: ${{ inputs.openclaw_version }}
+          IN_OPENSHELL: ${{ inputs.openshell_version }}
+        run: |
+          set -euo pipefail
+          oc="${IN_OPENCLAW:-}"
+          os="${IN_OPENSHELL:-}"
+          [ -n "$oc" ] || oc="$(gh api repos/openclaw/openclaw/releases/latest --jq .tag_name)"
+          [ -n "$os" ] || os="$(gh api repos/NVIDIA/OpenShell/releases/latest --jq .tag_name)"
+          oc="${oc#v}"; os="${os#v}"
+          {
+            echo "openclaw=$oc"
+            echo "openshell=$os"
+            echo "tag=${oc}-os${os}"
+          } >>"$GITHUB_OUTPUT"
+          echo "Resolved openclaw=$oc openshell=$os -> ${IMAGE}:${oc}-os${os}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide whether to build
+        id: gate
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "build=true" >>"$GITHUB_OUTPUT"
+            echo "Event '${{ github.event_name }}': building regardless."
+            exit 0
+          fi
+          if docker buildx imagetools inspect "${IMAGE}:${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
+            echo "build=false" >>"$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.ver.outputs.tag }} already exists; nothing to do."
+          else
+            echo "build=true" >>"$GITHUB_OUTPUT"
+            echo "Tag ${{ steps.ver.outputs.tag }} is new; building."
+          fi
+
+      - name: Set up QEMU
+        if: steps.gate.outputs.build == 'true' && contains(env.PLATFORMS, 'arm64')
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        if: steps.gate.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        if: steps.gate.outputs.build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: argocd/edatw-openclaw/image
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          provenance: false
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          build-args: |
+            OPENCLAW_VERSION=${{ steps.ver.outputs.openclaw }}
+            OPENSHELL_VERSION=${{ steps.ver.outputs.openshell }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/edatw/infrastructure
+            org.opencontainers.image.description=OpenClaw + NVIDIA OpenShell CLI
