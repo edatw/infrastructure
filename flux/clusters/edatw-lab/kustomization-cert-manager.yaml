@@ -33,7 +33,7 @@ spec:
       patch: |-
         - op: replace
           path: /spec/chart/spec/version
-          value: "v1.20.2"
+          value: "v1.20.3"
         - op: replace
           path: /spec/values/prometheus/servicemonitor/enabled
           value: false

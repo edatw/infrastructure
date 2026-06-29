@@ -31,10 +31,10 @@ spec:
       patch: |-
         - op: replace
           path: /spec/chart/spec/version
-          value: "4.5.0"
+          value: "4.5.1"
         - op: replace
           path: /spec/values/release/version
-          value: "4.5.0"
+          value: "4.5.1"
 
   # Dependencies: CNI must be ready for pod networking
   dependsOn:

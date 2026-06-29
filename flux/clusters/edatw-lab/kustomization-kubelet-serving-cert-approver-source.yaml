@@ -32,4 +32,4 @@ spec:
       patch: |-
         - op: replace
           path: /spec/ref/tag
-          value: "v0.10.1"
+          value: "v0.11.0"
