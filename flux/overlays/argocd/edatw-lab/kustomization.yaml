@@ -26,7 +26,7 @@ patches:
   - patch: |-
       - op: replace
         path: /spec/chart/spec/version
-        value: "9.5.21"
+        value: "10.0.1"
     target:
       kind: HelmRelease
       name: argocd
