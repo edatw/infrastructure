@@ -1,9 +1,9 @@
 ---
-# OpenShell gateway (kagent AgentHarness runtime: openshell).
+# OpenShell gateway (agent tool-execution sandbox runtime).
 # Official NVIDIA chart `helm-chart`, pinned to the latest stable 0.0.42 (chart,
 # gateway image and supervisor image are released as a matched set via appVersion).
-# The kagent controller reaches this over TLS gRPC at
-# openshell.openshell.svc.cluster.local:8080 (see flux/base/kagent).
+# OpenClaw reaches this over mTLS at
+# openshell.openshell.svc.cluster.local:8080 (see argocd/edatw-openclaw).
 #
 # COMPUTE DRIVER: Kubernetes. Provisions sandbox pods via the Agent Sandbox CRD
 # (sandboxes.agents.x-k8s.io) — requires the agent-sandbox controller installed
@@ -11,15 +11,15 @@
 #
 # PKI: provided by cert-manager (see the Certificate/ClusterIssuer manifests in
 # this base), NOT the chart's own modes (pkiInitJob + certManager both disabled).
-# We need a shared CA ClusterIssuer so kagent (a different namespace) can chain to
-# it to verify the gateway; the chart's PKI keeps its CA inside this namespace.
+# We need a shared CA ClusterIssuer so OpenClaw (a different namespace) can chain
+# to it to verify the gateway; the chart's PKI keeps its CA inside this namespace.
 # The server TLS secret's ca.crt doubles as the client-CA bundle (clientCaSecretName).
 #
-# AUTH MODEL (in-cluster TLS only):
+# AUTH MODEL (in-cluster mTLS):
 #  - TLS ENABLED (cert-manager server cert; the gateway binds 0.0.0.0).
-#  - Gateway auth DISABLED (disableGatewayAuth) — no mTLS client cert required;
-#    the link is encrypted and access control rests on the NetworkPolicy.
-#    Flip to false (+ provision a client cert for kagent) to enforce mTLS.
+#  - Gateway auth ENABLED (disableGatewayAuth: false) — clients must present a
+#    cert chaining to the openshell-ca (clientCaSecretName). OpenClaw uses a
+#    cert-manager client cert from that CA (argocd/edatw-openclaw).
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -51,9 +51,11 @@ spec:
       type: ClusterIP
     server:
       sandboxNamespace: openshell
-      # In-cluster TLS on; gateway auth off (no client cert) — access via NetworkPolicy.
+      # In-cluster TLS on; gateway auth ON — clients must present a cert chaining
+      # to the openshell-ca (clientCaSecretName below). OpenClaw connects with a
+      # cert-manager client cert from that CA (see argocd/edatw-openclaw).
       disableTls: false
-      disableGatewayAuth: true
+      disableGatewayAuth: false
       tls:
         # cert-manager-issued secrets (this base). The server cert's ca.crt is
         # reused for the client-CA mount, so no separate client-CA secret.
