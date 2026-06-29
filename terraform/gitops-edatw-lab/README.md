@@ -30,7 +30,7 @@ ServiceAccount or TTL with `GITOPS_SA` / `GITOPS_TOKEN_TTL`.
 | Key | Purpose | Where |
 |-----|---------|-------|
 | `talos-cluster-edatw-lab.txt` | Encrypts **this env's** `terraform.tfvars` / `backend.hcl` (reused from the cluster env). | `.sops.yaml`, `just sops-*` |
-| `edatw-lab-flux.txt` | **Dedicated** Flux key — its private content becomes the in-cluster `flux-system/sops-age` secret for decrypting repo manifests. | `var.sops_age_key_path` |
+| `flux-edatw-lab.txt` | **Dedicated** Flux key — its private content becomes the in-cluster `flux-system/sops-age` secret for decrypting repo manifests. | `var.sops_age_key_path` |
 
 The Flux key is the **private** key (`AGE-SECRET-KEY-...`). Its **public** key
 goes in the repo's manifest `.sops.yaml` so committed secrets encrypt to Flux.
@@ -62,7 +62,7 @@ kubectl create clusterrolebinding gitops-admin \
   --clusterrole=cluster-admin --serviceaccount=kube-system:gitops-admin
 
 # 1. Dedicated Flux age key (one-time). Add its PUBLIC key to the repo manifest .sops.yaml.
-age-keygen -o ~/.config/sops/age/edatw-lab-flux.txt
+age-keygen -o ~/.config/sops/age/flux-edatw-lab.txt
 
 # 2. Configure + encrypt tfvars (k8s host/ca + github_token).
 #    Leave kubernetes_token as the placeholder — tf-refresh-token fills it in.
@@ -102,7 +102,7 @@ just flux-kustomizations
 
 - Never commit plaintext `terraform.tfvars` or `backend.hcl` (`.gitignore`d).
 - Encrypted `.enc` files are safe to commit.
-- The Flux private key (`edatw-lab-flux.txt`) is never committed; only its
+- The Flux private key (`flux-edatw-lab.txt`) is never committed; only its
   public key belongs in the repo manifest `.sops.yaml`.
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 ## Requirements

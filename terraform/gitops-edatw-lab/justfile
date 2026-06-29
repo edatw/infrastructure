@@ -317,7 +317,7 @@ workflow:
     @echo "   # gitops-admin SA + binding, and sets github_token."
     @echo ""
     @echo "1. Generate the dedicated Flux age key (one-time):"
-    @echo "   age-keygen -o ~/.config/sops/age/edatw-lab-flux.txt"
+    @echo "   age-keygen -o ~/.config/sops/age/flux-edatw-lab.txt"
     @echo "   # Add its PUBLIC key to your repo .sops.yaml for manifest encryption."
     @echo ""
     @echo "2. Configure variables:"

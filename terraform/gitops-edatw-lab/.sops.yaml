@@ -3,7 +3,7 @@
 # This encrypts THIS environment's terraform.tfvars / backend.hcl. It reuses the
 # talos-cluster-edatw-lab terraform age key (same operator + cluster). It is NOT
 # the Flux decryption key — that is a separate, dedicated key passed to the
-# module via var.sops_age_key_file (default ~/.config/sops/age/edatw-lab-flux.txt).
+# module via var.sops_age_key_file (default ~/.config/sops/age/flux-edatw-lab.txt).
 #
 # Key: /Users/shangkuei/.config/sops/age/talos-cluster-edatw-lab.txt
 creation_rules:
