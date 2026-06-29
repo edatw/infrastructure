@@ -1,0 +1,8 @@
+# SOPS configuration for openshell secrets
+# Uses the edatw-lab Flux age key (same key as the other flux overlays).
+# Naming convention: *.enc.yaml (encrypted files)
+
+creation_rules:
+  - path_regex: \.enc\.yaml$
+    encrypted_regex: '^(data|stringData)$'
+    age: age142yu9a74xm8vfls25jvmdvw0c3yrcsvdht0ah9yu8cysya2qqyaqmg6y0a

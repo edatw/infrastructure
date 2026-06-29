@@ -1,6 +1,6 @@
 ---
 # OpenShell gateway (agent tool-execution sandbox runtime).
-# Official NVIDIA chart `helm-chart`, pinned to the latest stable 0.0.42 (chart,
+# Official NVIDIA chart `helm-chart`, pinned to the latest stable 0.0.71 (chart,
 # gateway image and supervisor image are released as a matched set via appVersion).
 # OpenClaw reaches this over mTLS at
 # openshell.openshell.svc.cluster.local:8080 (see argocd/edatw-openclaw).
@@ -17,9 +17,10 @@
 #
 # AUTH MODEL (in-cluster mTLS):
 #  - TLS ENABLED (cert-manager server cert; the gateway binds 0.0.0.0).
-#  - Gateway auth ENABLED (disableGatewayAuth: false) — clients must present a
-#    cert chaining to the openshell-ca (clientCaSecretName). OpenClaw uses a
-#    cert-manager client cert from that CA (argocd/edatw-openclaw).
+#  - mTLS ALWAYS required in chart 0.0.71 — the server terminates mTLS and rejects
+#    clients without a cert chaining to the openshell-ca (tls.clientCaSecretName).
+#    OpenClaw uses a cert-manager client cert from that CA (argocd/edatw-openclaw).
+#    auth.allowUnauthenticatedUsers is false so there is no local-dev bypass.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -31,7 +32,7 @@ spec:
   chart:
     spec:
       chart: helm-chart
-      version: "0.0.42"
+      version: "0.0.71"
       sourceRef:
         kind: HelmRepository
         name: openshell
@@ -51,17 +52,26 @@ spec:
       type: ClusterIP
     server:
       sandboxNamespace: openshell
-      # In-cluster TLS on; gateway auth ON — clients must present a cert chaining
-      # to the openshell-ca (clientCaSecretName below). OpenClaw connects with a
-      # cert-manager client cert from that CA (see argocd/edatw-openclaw).
+      # In-cluster TLS on. As of chart 0.0.71 the gateway ALWAYS terminates mTLS
+      # and requires a client cert (the old `disableGatewayAuth` flag is gone);
+      # mTLS stays enabled simply by keeping tls.clientCaSecretName set. OpenClaw
+      # connects with a cert-manager client cert chaining to the openshell-ca
+      # (see argocd/edatw-openclaw).
       disableTls: false
-      disableGatewayAuth: false
+      # Defense in depth: never accept unauthenticated requests as a local dev user.
+      auth:
+        allowUnauthenticatedUsers: false
       tls:
         # cert-manager-issued secrets (this base). The server cert's ca.crt is
         # reused for the client-CA mount, so no separate client-CA secret.
         certSecretName: openshell-server-tls
         clientCaSecretName: openshell-server-tls
         clientTlsSecretName: openshell-client-tls
+      # Sandbox-JWT signing key (chart 0.0.71+). The chart's certgen hook is
+      # disabled (pkiInitJob + certManager false, to keep our hand-rolled CA), so
+      # this Secret is hand-provisioned via the edatw-lab overlay (SOPS).
+      sandboxJwt:
+        signingSecretName: openshell-sandbox-jwt
     # PKI is provided by cert-manager, not the chart's own modes.
     pkiInitJob:
       enabled: false

@@ -1,0 +1,16 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# edatw-lab overlay for OpenShell: the shared base (HelmRelease + cert-manager
+# PKI + namespace) plus the cluster's SOPS-encrypted sandbox-JWT signing key
+# (chart 0.0.71+ needs it; hand-provisioned since the chart's certgen hook is
+# disabled — see the base HelmRelease).
+resources:
+  - ../../../base/openshell
+  - secret-openshell-sandbox-jwt.enc.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: edatw-lab
+      app.kubernetes.io/environment: production
