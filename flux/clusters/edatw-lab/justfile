@@ -4,8 +4,15 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
+# Required by the shared makefiles SOPS module (define before the import).
+# Drives the central age key path ~/.config/sops/age/flux-edatw-lab.txt and
+# provides the generic sops-* recipes (keygen, init-config, encrypt, decrypt,
+# edit, validate, ...). See `just --list`.
+sops_env_name := "flux-edatw-lab"
+
+import '../../../makefiles/sops.just'
+
 flux_namespace := "flux-system"
-sops_age_key_file := env("HOME") / ".config/sops/age/edatw-lab-flux.txt"
 secrets_dir := "secrets"
 
 [doc("List recipes")]
@@ -56,7 +63,7 @@ flux-resume name="flux-system":
 # Bump every component version pin to latest upstream stable. Each component has
 # its own recipe below so they can be bumped independently; this runs them all.
 [doc("Bump all component version pins to latest stable")]
-bump-versions: bump-cert-manager bump-cilium bump-csi-driver-smb bump-flux bump-flux-operator bump-gateway-api bump-openebs bump-snapshot-controller
+bump-versions: bump-argocd bump-cert-manager bump-cilium bump-csi-driver-smb bump-flux bump-flux-operator bump-gateway-api bump-kubelet-serving-cert-approver bump-openclaw-operator bump-openebs bump-openshell bump-snapshot-controller
 
 # Cilium chart version, patched onto the remote base in kustomization-cilium.yaml
 # (and the documented pin in README.md). The Talos side pins it independently.
@@ -90,6 +97,20 @@ bump-gateway-api:
     echo "==> Updated kustomization-gateway-api-source.yaml"
     echo "NOTE: update the Talos pin to match:"
     echo "  - terraform/modules/talos-cluster/main.tf      gateway_api_version = \"$gw\""
+
+# kubelet-serving-cert-approver version, patched onto the remote base's
+# GitRepository tag in kustomization-kubelet-serving-cert-approver-source.yaml.
+[doc("Bump the kubelet-serving-cert-approver version pin to latest stable")]
+bump-kubelet-serving-cert-approver:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The GitRepository pins a git tag, which keeps the leading v.
+    ka=$(gh api repos/alex1989hu/kubelet-serving-cert-approver/releases/latest --jq .tag_name)
+    ka="v${ka#v}"
+    echo "==> kubelet-serving-cert-approver: $ka"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    KA="$ka" perl -0777 -pi -e 's{(path: /spec/ref/tag\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{KA}"}' kustomization-kubelet-serving-cert-approver-source.yaml
+    echo "==> Updated kustomization-kubelet-serving-cert-approver-source.yaml"
 
 # cert-manager chart version, patched onto the remote base's HelmRelease in
 # kustomization-cert-manager.yaml. The Terraform bootstrap pins it independently.
@@ -139,6 +160,21 @@ bump-flux:
     echo "NOTE: keep the Terraform bootstrap pin in sync:"
     echo "  - terraform/gitops-edatw-lab  flux_version = \"$fx\"  (just gitops-bump)"
 
+# ArgoCD chart version, pinned in the deployment overlay's kustomize patch at
+# ../../overlays/argocd/edatw-lab/kustomization.yaml (the base ships a floating range).
+[doc("Bump the ArgoCD chart version pin to latest stable")]
+bump-argocd:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # argo-helm tags the argo-cd chart as argo-cd-<version>; releases are newest-first.
+    ac=$(gh api 'repos/argoproj/argo-helm/releases?per_page=100' --jq '[.[].tag_name | select(startswith("argo-cd-"))] | first')
+    ac="${ac#argo-cd-}"
+    echo "==> ArgoCD chart: $ac"
+    f="../../overlays/argocd/edatw-lab/kustomization.yaml"
+    # Replace the value following the patch path (anchored so only this pin changes).
+    AC="$ac" perl -0777 -pi -e 's{(path: /spec/chart/spec/version\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{AC}"}' "$f"
+    echo "==> Updated $f"
+
 # OpenEBS chart version, patched onto the remote base's HelmRelease in
 # kustomization-openebs.yaml (chart + release.version values kept in sync).
 [doc("Bump the OpenEBS chart version pin to latest stable")]
@@ -182,11 +218,63 @@ bump-snapshot-controller:
     SC="$sc" perl -0777 -pi -e 's{(path: /spec/ref/tag\s*\n\s*value:\s*)"[^"]*"}{$1"$ENV{SC}"}' kustomization-snapshot-controller.yaml
     echo "==> Updated kustomization-snapshot-controller.yaml"
 
-# ============================================================================
-# SOPS Secret Management (encrypted with the Flux age key)
-# ============================================================================
+# kagent chart version (kagent-crds + kagent), pinned directly in the EDA-repo
+# base HelmReleases at flux/base/{kagent-crds,kagent}. Both charts are released
+# in lockstep, so a single release tag drives both pins. Unlike the
+# shangkuei-sourced components, this is a direct value, not a remote-base patch.
+[doc("Bump the kagent chart version pin to latest stable")]
+bump-kagent:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # The kagent OCI chart version drops the leading v.
+    ka=$(gh api repos/kagent-dev/kagent/releases/latest --jq .tag_name)
+    ka="${ka#v}"
+    echo "==> kagent chart: $ka"
+    # Anchor on the chart name so only the chart.spec.version pin changes.
+    KA="$ka" perl -0777 -pi -e 's{(chart: kagent-crds\s*\n\s*version:\s*)"[^"]*"}{$1"$ENV{KA}"}' ../../base/kagent-crds/helmrelease-kagent-crds.yaml
+    KA="$ka" perl -0777 -pi -e 's{(chart: kagent\s*\n\s*version:\s*)"[^"]*"}{$1"$ENV{KA}"}' ../../base/kagent/helmrelease-kagent.yaml
+    echo "==> Updated flux/base/kagent-crds + flux/base/kagent HelmReleases"
 
-[doc("Create an encrypted Secret template (--name <n> --namespace <ns>)")]
+# OpenShell chart version, pinned directly in the flux/base/openshell HelmRelease.
+# The chart is OCI-only (no GitHub release feed), so the version is read straight
+# from the registry with `helm show chart`.
+[doc("Bump the OpenShell chart version pin to latest stable")]
+bump-openshell:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Official NVIDIA chart (oci://ghcr.io/nvidia/openshell, chart name helm-chart),
+    # matching flux/base/openshell/helmrepository-openshell.yaml.
+    os=$(helm show chart oci://ghcr.io/nvidia/openshell/helm-chart 2>/dev/null | awk '/^version:/{print $2; exit}')
+    [ -n "$os" ] || { echo "failed to resolve OpenShell chart version" >&2; exit 1; }
+    echo "==> OpenShell chart: $os"
+    # Anchor on the chart name so only the chart.spec.version pin changes.
+    OS="$os" perl -0777 -pi -e 's{(chart: helm-chart\s*\n\s*version:\s*)"[^"]*"}{$1"$ENV{OS}"}' ../../base/openshell/helmrelease-openshell.yaml
+    echo "==> Updated flux/base/openshell HelmRelease"
+
+# OpenClaw operator chart version, pinned directly in the
+# flux/base/openclaw-operator HelmRelease. OCI-only chart (no GitHub release
+# feed), so the version is read straight from the registry with `helm show chart`.
+[doc("Bump the OpenClaw operator chart version pin to latest stable")]
+bump-openclaw-operator:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    oc=$(helm show chart oci://ghcr.io/paperclipinc/charts/openclaw-operator 2>/dev/null | awk '/^version:/{print $2; exit}')
+    [ -n "$oc" ] || { echo "failed to resolve OpenClaw operator chart version" >&2; exit 1; }
+    echo "==> OpenClaw operator chart: $oc"
+    # Anchor on the chart name so only the chart.spec.version pin changes.
+    OC="$oc" perl -0777 -pi -e 's{(chart: openclaw-operator\s*\n\s*version:\s*)"[^"]*"}{$1"$ENV{OC}"}' ../../base/openclaw-operator/helmrelease-openclaw-operator.yaml
+    echo "==> Updated flux/base/openclaw-operator HelmRelease"
+
+# ============================================================================
+# SOPS Secret Management
+# ============================================================================
+# Generic SOPS operations (sops-keygen, sops-init-config, sops-encrypt,
+# sops-decrypt, sops-edit, sops-validate, sops-info, ...) come from the shared
+# makefiles/sops.just module imported above. `secret-create` below is the only
+# cluster-specific helper: it scaffolds a Kubernetes Secret then encrypts it
+# with the shared Flux age key.
+
+[doc("Scaffold + encrypt a Kubernetes Secret (--name <n> --namespace <ns>)")]
 [arg('name', long)]
 [arg('namespace', long)]
 secret-create name namespace:
@@ -208,27 +296,3 @@ secret-create name namespace:
     "${EDITOR:-vim}" "$f"
     SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops --encrypt --in-place "$f"
     echo "Encrypted: $f  (add it to a kustomization.yaml resources list)"
-
-[doc("Edit an encrypted secret in place (--file <path>)")]
-[arg('file', long)]
-secret-edit file:
-    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops "{{ file }}"
-
-[doc("View a decrypted secret (--file <path>)")]
-[arg('file', long)]
-secret-view file:
-    SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "{{ file }}"
-
-[doc("Validate that all *.enc.yaml secrets decrypt")]
-sops-validate:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    fail=0
-    while IFS= read -r f; do
-        if SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "$f" >/dev/null 2>&1; then
-            echo "  [OK]   $f"
-        else
-            echo "  [FAIL] $f"; fail=1
-        fi
-    done < <(find . -name '*.enc.yaml')
-    exit $fail
