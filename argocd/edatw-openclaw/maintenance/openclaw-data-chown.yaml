@@ -1,0 +1,65 @@
+# One-shot maintenance Job: chown the OpenClaw data PVC dir to uid/gid 1000.
+#
+# NOT part of the ArgoCD sync (lives outside base/ and overlays/) — apply by hand:
+#   kubectl apply -f argocd/edatw-openclaw/maintenance/openclaw-data-chown.yaml
+#
+# WHY ------------------------------------------------------------------------
+# OpenClaw's gateway (uid 1000) chmods its config home (~/.openclaw, which is the
+# data PVC root) to 0700. OpenEBS LocalPV-hostpath provisions dirs owned by root,
+# and — unlike some OpenEBS volume types — the hostpath provisioner (v4.5.1) does
+# NOT honor a `FilePermissions` cas-config (verified: it provisions root-owned and
+# ignores the annotation on pvc-data.yaml). `fsGroup: 1000` grants group access but
+# not ownership, and the edatw-openclaw namespace is PodSecurity `restricted`, so an
+# in-pod root init-container that could chown is disallowed. Hence this one-shot,
+# privileged Job in kube-system (PodSecurity `privileged`), pinned to the PV's node.
+#
+# WHEN -----------------------------------------------------------------------
+# Run once after the `openclaw-data-fsfix` PVC is (re)created. The pre-created PVC
+# is a stable claim the operator won't recreate, so the ownership sticks across
+# pod rolls — you only need this again if the PVC itself is deleted/reprovisioned.
+#
+# BEFORE RE-RUNNING: update nodeName + HOST_PATH to the current PV:
+#   pv=$(kubectl -n edatw-openclaw get pvc openclaw-data-fsfix -o jsonpath='{.spec.volumeName}')
+#   kubectl get pv "$pv" -o jsonpath='node={.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]} path={.spec.local.path}{"\n"}'
+# ----------------------------------------------------------------------------
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: openclaw-data-chown
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: openclaw
+    app.kubernetes.io/component: maintenance
+spec:
+  ttlSecondsAfterFinished: 300
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openclaw
+        app.kubernetes.io/component: maintenance
+    spec:
+      restartPolicy: Never
+      nodeName: edatw-lab-worker-02
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: chown
+          image: busybox:1.36
+          securityContext:
+            runAsUser: 0
+          command: ["sh", "-c"]
+          args:
+            - |
+              HOST_PATH=/host/pvc-461f3c63-389c-47c5-8ec9-b4bf2ff5ef38
+              chown -R 1000:1000 "$HOST_PATH"
+              chmod 700 "$HOST_PATH"
+              stat -c '%n owner=%u group=%g mode=%a' "$HOST_PATH"
+          volumeMounts:
+            - name: openebs-local
+              mountPath: /host
+      volumes:
+        - name: openebs-local
+          hostPath:
+            path: /var/openebs/local
+            type: Directory
