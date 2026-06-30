@@ -1,0 +1,32 @@
+---
+# OpenClaw data PVC, pre-created so we can stamp the OpenEBS LocalPV-Hostpath
+# FilePermissions on it. The openclaw-operator's storage.persistence has no
+# annotations field, so the instance points at this via existingClaim.
+#
+# Why: the gateway (uid 1000) chmods its config home (~/.openclaw = this PVC
+# root) to 0700. OpenEBS otherwise provisions hostpath dirs owned by root, so
+# fsGroup grants only group access and the chmod fails with EPERM. FilePermissions
+# provisions the dir owned by uid/gid 1000 from the start, so the chmod succeeds.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: openclaw-data-fsfix
+  namespace: edatw-openclaw
+  annotations:
+    cas.openebs.io/config: |
+      - name: StorageType
+        value: "hostpath"
+      - name: BasePath
+        value: "/var/openebs/local"
+      - name: FilePermissions
+        data:
+          UID: "1000"
+          GID: "1000"
+          mode: "0700"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: openebs-hostpath
+  resources:
+    requests:
+      storage: 20Gi

@@ -26,10 +26,12 @@ spec:
     # Single data PVC; the operator mounts it at ~/.openclaw, ~/.local, ~/.cache,
     # ~/.config (HOME=/home/openclaw). ~/.config is where the openshell CLI keeps
     # its gateway state, so the mTLS mount below lands on a writable PVC path.
+    # Bind a pre-created PVC (pvc-data.yaml) carrying OpenEBS FilePermissions so
+    # the dir is owned by uid/gid 1000 (the operator's persistence block has no
+    # annotations field, so existingClaim is the way to set provisioning perms).
     persistence:
       enabled: true
-      size: 20Gi
-      storageClass: openebs-hostpath
+      existingClaim: openclaw-data-fsfix
 
   # Install the OpenShell sandbox plugin (npm, via init container). The openshell
   # CLI it shells out to is baked into the custom image (on PATH).

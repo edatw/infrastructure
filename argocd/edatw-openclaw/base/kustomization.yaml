@@ -6,9 +6,12 @@ namespace: edatw-openclaw
 
 resources:
   - namespace.yaml
+  # Pre-created data PVC with OpenEBS FilePermissions (dir owned by uid/gid 1000);
+  # the OpenClawInstance binds it via storage.persistence.existingClaim.
+  - pvc-data.yaml
   # Operator-managed agent: the OpenClawInstance generates the StatefulSet,
-  # Service, data PVC and NetworkPolicy. The client mTLS cert chains to the
-  # shared openshell-ca for the OpenShell sandbox backend.
+  # Service and NetworkPolicy (data PVC is the pre-created one above). The client
+  # mTLS cert chains to the shared openshell-ca for the OpenShell sandbox backend.
   - certificate-openshell-client.yaml
   - openclawinstance.yaml
 
