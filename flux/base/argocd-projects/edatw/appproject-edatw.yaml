@@ -62,6 +62,11 @@ spec:
       kind: Role
     - group: 'rbac.authorization.k8s.io'
       kind: RoleBinding
+    # OpenClaw: the operator-managed agent CR + its cert-manager client cert.
+    - group: 'openclaw.rocks'
+      kind: OpenClawInstance
+    - group: 'cert-manager.io'
+      kind: Certificate
 
   # Orphaned resources (clean up when app is deleted)
   orphanedResources:
