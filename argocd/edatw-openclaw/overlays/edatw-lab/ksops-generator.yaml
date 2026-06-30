@@ -1,0 +1,12 @@
+---
+# KSOPS generator: ArgoCD repo-server decrypts these SOPS secrets at render time.
+apiVersion: viaduct.ai/v1
+kind: ksops
+metadata:
+  name: openclaw-secret-generator
+  annotations:
+    config.kubernetes.io/function: |
+      exec:
+        path: ksops
+files:
+  - secret-ghcr-pull.yaml

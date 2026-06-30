@@ -16,11 +16,11 @@ spec:
     repository: ghcr.io/edatw/openclaw-openshell
     tag: "2026.6.10-os0.0.71"
     pullPolicy: IfNotPresent
-    # GHCR package is private; pull with the ghcr-pull secret (GitHub PAT with
-    # read:packages). For the GitOps deploy this Secret should be SOPS-encrypted
-    # in the edatw-lab overlay; the deployment test created it imperatively.
+    # GHCR package is private; pull with ghcr-pull-secret (GitHub PAT with
+    # read:packages), delivered as a SOPS dockerconfigjson via the edatw-lab
+    # overlay (KSOPS).
     pullSecrets:
-      - name: ghcr-pull
+      - name: ghcr-pull-secret
 
   storage:
     # Single data PVC; the operator mounts it at ~/.openclaw, ~/.local, ~/.cache,
