@@ -64,6 +64,10 @@ spec:
     # sandboxes is tunneled THROUGH the gateway, so this one rule suffices.
     networkPolicy:
       enabled: true
+      # Default ingress is same-namespace only; allow the cloudflared connector
+      # (ns: edatw) to reach the gateway so the tunnel can serve openclaw.eda-tw.com.
+      allowedIngressNamespaces:
+        - edatw
       additionalEgress:
         - to:
             - namespaceSelector:
