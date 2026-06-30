@@ -77,17 +77,17 @@ spec:
             - protocol: TCP
               port: 8080
 
+  # Control UI is reached via the cloudflared tunnel (no Ingress for the operator
+  # to derive the origin from), so allow it explicitly. First-class gateway field;
+  # the operator also auto-injects the localhost origins.
+  gateway:
+    controlUiOrigins:
+      - https://openclaw.eda-tw.com
+
   # OpenClaw app config (openclaw.json). Route tool execution into OpenShell.
   config:
     mergeMode: merge
     raw:
-      gateway:
-        controlUi:
-          # The Control UI is served through the cloudflared tunnel, so its
-          # browser origin must be allowlisted (full origin, no wildcards).
-          # Reachable at https://openclaw.eda-tw.com (Cloudflare Access in front).
-          allowedOrigins:
-            - https://openclaw.eda-tw.com
       plugins:
         entries:
           openshell:
