@@ -96,6 +96,9 @@ spec:
               mode: mirror # keep the operator PVC canonical
               gatewayEndpoint: "https://openshell.openshell.svc.cluster.local:8080"
               timeoutSeconds: 180
+          # Workboard plugin (visual task board in the Control UI).
+          workboard:
+            enabled: true
       agents:
         defaults:
           sandbox:
