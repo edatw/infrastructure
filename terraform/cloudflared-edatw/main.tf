@@ -6,8 +6,12 @@ terraform {
 
   required_providers {
     cloudflare = {
-      source  = "cloudflare/cloudflare"
-      version = "~> 5.0"
+      source = "cloudflare/cloudflare"
+      # 5.21.x. NOTE: upgrading from <=5.12 requires a one-time state migration of
+      # cloudflare_zero_trust_tunnel_cloudflared_config (breaking provider state
+      # schema). Tight minor pin because provider locks are gitignored here, so the
+      # constraint is the only pin guarding against another breaking float.
+      version = "~> 5.21.0"
     }
   }
 }
@@ -18,7 +22,7 @@ provider "cloudflare" {
 
 # Deploy salary-mailman Cloudflare Tunnel
 module "edatw_tunnel" {
-  source = "../../modules/cloudflared"
+  source = "../modules/cloudflared"
 
   account_id  = var.cloudflare_account_id
   tunnel_name = "talos-edatw"
@@ -47,6 +51,16 @@ module "edatw_tunnel" {
         connect_timeout  = "30"
         http_host_header = "salary-mailman.eda-tw.com"
       }
+    },
+    {
+      # OpenClaw agent UI. The public hostname is gated by Cloudflare Access
+      # (see access.tf) — OpenClaw itself has no auth, so Access is the front door.
+      hostname = "openclaw.eda-tw.com"
+      service  = "http://openclaw.edatw-openclaw.svc.cluster.local:18789"
+      origin_request = {
+        connect_timeout  = "30"
+        http_host_header = "openclaw.eda-tw.com"
+      }
     }
   ]
 
@@ -66,6 +80,11 @@ module "edatw_tunnel" {
       name    = "salary-mailman"
       proxied = true
       comment = "Salary Mailman Application - EDATW"
+    }
+    "openclaw" = {
+      name    = "openclaw"
+      proxied = true
+      comment = "OpenClaw Agent UI - EDATW (Cloudflare Access protected)"
     }
   }
 }

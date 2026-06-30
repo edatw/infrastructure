@@ -1,0 +1,49 @@
+# Cloudflared EDATW - Justfile
+# Manages the Cloudflare Tunnel + Zero Trust Access for EDATW (Terraform + SOPS).
+# Tunnel ingress/DNS in main.tf; OpenClaw Access (app/policy/service-token) in access.tf.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# ============================================================================
+# Configuration
+# ============================================================================
+
+# Required by the shared modules (sops.just must be imported first). Central key
+# strategy => ~/.config/sops/age/cloudflared-edatw.txt
+sops_env_name := "cloudflared-edatw"
+
+import '../../makefiles/sops.just'
+import '../../makefiles/terraform.just'
+
+# ============================================================================
+# Default & Help
+# ============================================================================
+
+[doc("Show available recipes")]
+default:
+    @just --list --unsorted
+
+[doc("Show the SOPS + Terraform setup/usage workflow")]
+workflow:
+    @echo ""
+    @echo "Cloudflared EDATW - Setup & Usage"
+    @echo "================================="
+    @echo ""
+    @echo "Initial setup (one-time):"
+    @echo "  just sops-init-config                                  # age key + .sops.yaml"
+    @echo "  cp backend.hcl.example backend.hcl && \$EDITOR backend.hcl"
+    @echo "  just tf-encrypt-backend && rm backend.hcl"
+    @echo "  cp terraform.tfvars.example terraform.tfvars && \$EDITOR terraform.tfvars"
+    @echo "  just tf-encrypt-tfvars && rm terraform.tfvars"
+    @echo ""
+    @echo "Daily usage (auto-decrypts the .enc files):"
+    @echo "  just tf-init      # decrypts backend.hcl.enc"
+    @echo "  just tf-plan      # decrypts terraform.tfvars.enc"
+    @echo "  just tf-apply"
+    @echo ""
+    @echo "Edit encrypted files in-place:  just tf-edit-tfvars | just tf-edit-backend"
+    @echo ""
+    @echo "After apply, capture the OpenClaw Access agent credential:"
+    @echo "  terraform output -raw openclaw_agent_client_secret"
+
+alias clean := tf-clean

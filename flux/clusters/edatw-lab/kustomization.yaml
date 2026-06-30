@@ -61,14 +61,6 @@ resources:
   - kustomization-argocd.yaml
   - kustomization-argocd-projects.yaml
 
-  # Tailscale operator: tailnet (and later Funnel) exposure (depends on cilium).
-  # config = namespace + OAuth secret (flux/overlays/tailscale-operator/edatw-lab);
-  # operator = HelmRelease + ProxyClass from the shangkuei base (depends on config).
-  # Uncomment after creating the OAuth client and running `just secret-oauth`
-  # (then uncomment the secret in that overlay's kustomization.yaml).
-  # - kustomization-tailscale-operator-config.yaml
-  # - kustomization-tailscale-operator.yaml
-
   # Agent Sandbox (kubernetes-sigs/agent-sandbox): controller + Sandbox CRD.
   # Prerequisite for OpenShell's Kubernetes compute driver (install before openshell).
   - kustomization-agent-sandbox.yaml
