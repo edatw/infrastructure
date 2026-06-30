@@ -58,9 +58,12 @@ spec:
       # connects with a cert-manager client cert chaining to the openshell-ca
       # (see argocd/edatw-openclaw).
       disableTls: false
-      # Defense in depth: never accept unauthenticated requests as a local dev user.
+      # OIDC user auth is intentionally skipped, so trust any mTLS-authenticated
+      # caller as a local-dev principal. Access control rests on client mTLS (a
+      # cert from openshell-ca) + the NetworkPolicy (OpenClaw ns only). Without
+      # this, sandbox ops fail with "missing authorization header".
       auth:
-        allowUnauthenticatedUsers: false
+        allowUnauthenticatedUsers: true
       tls:
         # cert-manager-issued secrets (this base). The server cert's ca.crt is
         # reused for the client-CA mount, so no separate client-CA secret.
