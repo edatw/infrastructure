@@ -14,7 +14,7 @@ spec:
     # Custom image = stock OpenClaw + the openshell CLI (argocd/edatw-openclaw/image),
     # built/pushed by .github/workflows/openclaw-image.yml.
     repository: ghcr.io/edatw/openclaw-openshell
-    tag: "2026.6.10-os0.0.71"
+    tag: "2026.6.11-os0.0.71"
     pullPolicy: IfNotPresent
     # GHCR package is private; pull with ghcr-pull-secret (GitHub PAT with
     # read:packages), delivered as a SOPS dockerconfigjson via the edatw-lab

@@ -1,0 +1,71 @@
+# OpenClaw image version management - edatw-openclaw
+#
+# The agent image (ghcr.io/edatw/openclaw-openshell:<openclaw>-os<openshell>) is a
+# custom build = stock OpenClaw + the NVIDIA OpenShell CLI (see image/Dockerfile),
+# pushed by .github/workflows/openclaw-image.yml.
+#
+# Why this exists: the OpenClaw runtime and the clawhub @openclaw/openshell-sandbox
+# plugin (installed at runtime) must be plugin-API compatible. When the plugin
+# requires a newer API than the pinned runtime exposes, init-plugins fails — bump
+# the runtime to match.
+#
+# Order: build the image first, then point the manifest at it once the tag is
+# pushed. `release` does both (build -> wait -> bump). Empty version args resolve
+# to the latest upstream releases.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+instance := "base/openclawinstance.yaml"
+image_workflow := "openclaw-image.yml"
+
+[doc("List recipes")]
+default:
+    @just --list --unsorted
+
+[doc("Show the pinned image tag and the latest upstream OpenClaw/OpenShell releases")]
+versions:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cur=$(grep -E '^\s*tag:' "{{ instance }}" | head -1 | sed -E 's/.*"([^"]*)".*/\1/')
+    oc=$(gh api repos/openclaw/openclaw/releases/latest --jq .tag_name 2>/dev/null || echo "?")
+    os=$(gh api repos/NVIDIA/OpenShell/releases/latest --jq .tag_name 2>/dev/null || echo "?")
+    echo "pinned image tag : $cur"
+    echo "latest OpenClaw  : $oc"
+    echo "latest OpenShell : $os"
+
+[doc("Resolve versions and trigger the CI image build (empty args = latest releases)")]
+build-image openclaw="" openshell="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    oc="{{ openclaw }}"; [ -n "$oc" ] || oc=$(gh api repos/openclaw/openclaw/releases/latest --jq .tag_name); oc="${oc#v}"
+    os="{{ openshell }}"; [ -n "$os" ] || os=$(gh api repos/NVIDIA/OpenShell/releases/latest --jq .tag_name); os="${os#v}"
+    echo "==> Building ghcr.io/edatw/openclaw-openshell:${oc}-os${os}"
+    gh workflow run "{{ image_workflow }}" -f openclaw_version="$oc" -f openshell_version="$os"
+    echo "==> Triggered. Watch with: gh run watch \$(gh run list --workflow {{ image_workflow }} --limit 1 --json databaseId --jq '.[0].databaseId')"
+
+[doc("Bump the OpenClawInstance image tag (empty args = latest releases). Build the image first.")]
+bump-image openclaw="" openshell="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    oc="{{ openclaw }}"; [ -n "$oc" ] || oc=$(gh api repos/openclaw/openclaw/releases/latest --jq .tag_name); oc="${oc#v}"
+    os="{{ openshell }}"; [ -n "$os" ] || os=$(gh api repos/NVIDIA/OpenShell/releases/latest --jq .tag_name); os="${os#v}"
+    tag="${oc}-os${os}"
+    # Scope the replacement to the openclaw-openshell image block (not any other tag:).
+    TAG="$tag" perl -0777 -i -pe 's/(repository:\s*"?ghcr\.io\/edatw\/openclaw-openshell"?\s*\n(?:[^\n]*\n)*?\s*tag:\s*)"[^"]*"/$1"$ENV{TAG}"/' "{{ instance }}"
+    echo "==> Set image tag -> $tag"
+    grep -nE '^\s*tag:' "{{ instance }}" | head -1
+    echo "==> Review (git diff), commit, push. ArgoCD rolls the new image."
+
+[doc("Full flow: build the image, wait for the run, then bump the manifest tag")]
+release openclaw="" openshell="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    oc="{{ openclaw }}"; [ -n "$oc" ] || oc=$(gh api repos/openclaw/openclaw/releases/latest --jq .tag_name); oc="${oc#v}"
+    os="{{ openshell }}"; [ -n "$os" ] || os=$(gh api repos/NVIDIA/OpenShell/releases/latest --jq .tag_name); os="${os#v}"
+    echo "==> Releasing ghcr.io/edatw/openclaw-openshell:${oc}-os${os}"
+    gh workflow run "{{ image_workflow }}" -f openclaw_version="$oc" -f openshell_version="$os"
+    sleep 5
+    rid=$(gh run list --workflow "{{ image_workflow }}" --limit 1 --json databaseId --jq '.[0].databaseId')
+    echo "==> Waiting on run $rid ..."
+    gh run watch "$rid" --exit-status
+    just bump-image "$oc" "$os"
