@@ -105,9 +105,8 @@ infrastructure/
 │   └── edatw-salary-mailman/  # Salary notification service
 │
 ├── terraform/           # Terraform configurations
-│   ├── modules/        # Reusable Terraform modules
-│   └── environments/   # Environment-specific configs
-│       └── cloudflared-edatw/  # Cloudflare tunnel infrastructure
+│   ├── modules/             # Reusable Terraform modules (git submodule)
+│   └── cloudflared-edatw/   # Cloudflare tunnel + Zero Trust Access
 │
 ├── docs/               # Documentation (planned)
 │   ├── architecture/  # Architecture diagrams and docs

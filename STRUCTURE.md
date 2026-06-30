@@ -527,17 +527,17 @@ sops argocd/edatw-cloudflared/overlays/shangkuei-xyz-talos/secret-cloudflared.ya
 
 ```bash
 # Initialize environment
-cd terraform/environments/cloudflared-edatw
-make init
+cd terraform/cloudflared-edatw
+just tf-init
 
 # Plan changes
-make plan
+just tf-plan
 
 # Apply changes
-make apply
+just tf-apply
 
 # Clean decrypted files
-make clean
+just clean
 ```
 
 ### Documentation Validation
