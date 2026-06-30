@@ -57,4 +57,4 @@ patches:
 # TODO(edatw-lab): the base still ships the placeholder domain `argocd.local`
 # (global.domain + server.config.url) and server.service is ClusterIP with no
 # ingress. Set a real domain and exposure (e.g. a cloudflared tunnel rule under
-# terraform/environments/cloudflared-edatw) before relying on external access.
+# terraform/cloudflared-edatw) before relying on external access.
