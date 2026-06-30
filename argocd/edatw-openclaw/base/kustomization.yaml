@@ -1,0 +1,18 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: edatw-openclaw
+
+resources:
+  - namespace.yaml
+  # Operator-managed agent: the OpenClawInstance generates the StatefulSet,
+  # Service, data PVC and NetworkPolicy. The client mTLS cert chains to the
+  # shared openshell-ca for the OpenShell sandbox backend.
+  - certificate-openshell-client.yaml
+  - openclawinstance.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: openclaw
+      app.kubernetes.io/component: gateway

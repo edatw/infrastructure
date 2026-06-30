@@ -1,0 +1,96 @@
+---
+# OpenClaw agent, operator-managed (openclaw-operator, flux/base/openclaw-operator).
+# Replaces the former hand-rolled Deployment/Service/PVCs/SA — the operator
+# generates a StatefulSet + Service + data PVC + NetworkPolicy from this spec.
+#
+# Tool execution is sandboxed through the in-cluster OpenShell gateway over mTLS.
+apiVersion: openclaw.rocks/v1alpha1
+kind: OpenClawInstance
+metadata:
+  name: openclaw
+  namespace: edatw-openclaw
+spec:
+  image:
+    # Custom image = stock OpenClaw + the openshell CLI (argocd/edatw-openclaw/image),
+    # built/pushed by .github/workflows/openclaw-image.yml.
+    repository: ghcr.io/edatw/openclaw-openshell
+    tag: "2026.6.10-os0.0.71"
+    pullPolicy: IfNotPresent
+    # GHCR package is private; pull with the ghcr-pull secret (GitHub PAT with
+    # read:packages). For the GitOps deploy this Secret should be SOPS-encrypted
+    # in the edatw-lab overlay; the deployment test created it imperatively.
+    pullSecrets:
+      - name: ghcr-pull
+
+  storage:
+    # Single data PVC; the operator mounts it at ~/.openclaw, ~/.local, ~/.cache,
+    # ~/.config (HOME=/home/openclaw). ~/.config is where the openshell CLI keeps
+    # its gateway state, so the mTLS mount below lands on a writable PVC path.
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: openebs-hostpath
+
+  # Install the OpenShell sandbox plugin (npm, via init container). The openshell
+  # CLI it shells out to is baked into the custom image (on PATH).
+  plugins:
+    - "@openclaw/openshell-sandbox"
+
+  env:
+    # The openshell CLI connects directly to this endpoint and derives its mTLS
+    # bundle dir from the (sanitized) URL — must match the mount path below.
+    - name: OPENSHELL_GATEWAY_ENDPOINT
+      value: "https://openshell.openshell.svc.cluster.local:8080"
+
+  # Mount the client mTLS bundle where the openshell CLI looks for a direct
+  # https endpoint: ~/.config/openshell/gateways/<sanitized-endpoint>/mtls/
+  # (the URL with '://' and ':' replaced by '_'). Holds ca.crt/tls.crt/tls.key.
+  extraVolumes:
+    - name: openshell-mtls
+      secret:
+        secretName: openclaw-openshell-mtls
+  extraVolumeMounts:
+    - name: openshell-mtls
+      mountPath: /home/openclaw/.config/openshell/gateways/https___openshell.openshell.svc.cluster.local_8080/mtls
+      readOnly: true
+
+  security:
+    # Trust the gateway CA from the OpenClaw (node) process too (mounted at
+    # /etc/ssl/certs/custom-ca-bundle.crt + NODE_EXTRA_CA_CERTS).
+    caBundle:
+      secretName: openclaw-openshell-mtls
+      key: ca.crt
+    # Default egress is DNS + HTTPS; open the gateway's port explicitly. SSH to
+    # sandboxes is tunneled THROUGH the gateway, so this one rule suffices.
+    networkPolicy:
+      enabled: true
+      additionalEgress:
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: openshell
+          ports:
+            - protocol: TCP
+              port: 8080
+
+  # OpenClaw app config (openclaw.json). Route tool execution into OpenShell.
+  config:
+    mergeMode: merge
+    raw:
+      plugins:
+        entries:
+          openshell:
+            enabled: true
+            config:
+              mode: mirror # keep the operator PVC canonical
+              gatewayEndpoint: "https://openshell.openshell.svc.cluster.local:8080"
+              timeoutSeconds: 180
+      agents:
+        defaults:
+          sandbox:
+            mode: all
+            backend: openshell
+
+  # TODO: add an LLM provider key before the agent can run, e.g.
+  #   envFrom: [{ secretRef: { name: openclaw-api-keys } }]
+  # (create that Secret via the edatw-lab overlay, SOPS-encrypted).
