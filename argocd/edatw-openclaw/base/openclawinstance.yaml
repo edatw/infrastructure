@@ -81,6 +81,13 @@ spec:
   config:
     mergeMode: merge
     raw:
+      gateway:
+        controlUi:
+          # The Control UI is served through the cloudflared tunnel, so its
+          # browser origin must be allowlisted (full origin, no wildcards).
+          # Reachable at https://openclaw.eda-tw.com (Cloudflare Access in front).
+          allowedOrigins:
+            - https://openclaw.eda-tw.com
       plugins:
         entries:
           openshell:
