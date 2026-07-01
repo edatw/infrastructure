@@ -43,6 +43,14 @@ spec:
     spec:
       serviceAccountName: cloudflared-openclaw
       dnsPolicy: ClusterFirst
+      # HA: never co-schedule the two connector replicas on the same node.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: cloudflared-openclaw
+              topologyKey: kubernetes.io/hostname
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
