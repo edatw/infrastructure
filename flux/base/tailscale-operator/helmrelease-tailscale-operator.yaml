@@ -1,0 +1,50 @@
+---
+# Tailscale Kubernetes operator. Provides egress from in-cluster workloads to
+# tailnet hosts (here: the Ollama server shangkuei-windows-asrock, consumed by
+# the OpenClaw agent in edatw-openclaw). The cluster NODES are on the tailnet
+# via the Talos siderolabs/tailscale extension, but PODS are not (Cilium VXLAN,
+# bpf.masquerade=false, pod CIDR not advertised) -> the operator's egress proxy
+# is what bridges a pod to a tailnet host.
+#
+# OAUTH: the operator authenticates with a Tailscale OAuth client. Rather than
+# passing oauth.clientId/clientSecret as Helm values (which would template a
+# plaintext Secret), we leave oauth.* empty and pre-create the `operator-oauth`
+# Secret (keys client_id/client_secret) via SOPS in the edatw-lab overlay.
+#
+# Chart version tracks the Tailscale release train (1.<minor>.<patch>).
+# NOTE: confirm/adjust to the latest stable tag published at
+#   https://pkgs.tailscale.com/helmcharts (helm search repo tailscale).
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tailscale-operator
+  namespace: tailscale
+spec:
+  interval: 30m
+  timeout: 10m
+  chart:
+    spec:
+      chart: tailscale-operator
+      version: "1.98.4"
+      sourceRef:
+        kind: HelmRepository
+        name: tailscale
+        namespace: flux-system
+      interval: 24h
+  install:
+    createNamespace: false
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+      remediateLastFailure: true
+    cleanupOnFail: true
+  values:
+    # oauth.* intentionally omitted -> the chart does not template its own
+    # Secret; the operator consumes the pre-created `operator-oauth` Secret
+    # (overlay, SOPS). Do NOT put credentials here.
+    #
+    # Kubernetes API-server-over-Tailscale proxy is not needed for egress-only.
+    apiServerProxyConfig:
+      mode: "false"

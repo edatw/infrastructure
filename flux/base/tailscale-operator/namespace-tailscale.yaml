@@ -1,0 +1,11 @@
+---
+# Tailscale operator + its egress/ingress proxy pods live here. Proxies need
+# NET_ADMIN, so the namespace runs at the privileged Pod Security level.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tailscale
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/warn: privileged
+    pod-security.kubernetes.io/audit: privileged

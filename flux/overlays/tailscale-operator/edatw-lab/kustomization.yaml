@@ -1,0 +1,15 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# edatw-lab overlay for the Tailscale operator: the shared base (HelmRepository
+# + HelmRelease + namespace) plus the cluster's SOPS-encrypted OAuth client
+# credentials (operator-oauth), which the operator consumes at runtime.
+resources:
+  - ../../../base/tailscale-operator
+  - secret-operator-oauth.enc.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/instance: edatw-lab
+      app.kubernetes.io/environment: production

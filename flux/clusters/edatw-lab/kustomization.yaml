@@ -80,6 +80,13 @@ resources:
   # edatw-openclaw namespace. Depends on cilium (no webhook -> no cert-manager).
   - kustomization-openclaw-operator.yaml
 
+  # Tailscale operator: egress from in-cluster pods to tailnet hosts. Used by the
+  # OpenClaw agent to reach the Ollama server on the tailnet (its default LLM
+  # provider); the egress Service is defined in the ArgoCD edatw-openclaw overlay.
+  # Base (flux/base/tailscale-operator) + edatw-lab overlay with the SOPS OAuth
+  # secret. Depends on cilium.
+  - kustomization-tailscale-operator.yaml
+
   # kagent: Kubernetes-native AI agent platform (depends on cilium + openebs +
   # openshell). crds = CRDs + namespace + OCI HelmRepository (flux/base/kagent-crds);
   # kagent = controller/UI + bundled persistent PostgreSQL (depends on crds).
