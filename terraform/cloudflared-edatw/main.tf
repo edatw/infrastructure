@@ -51,16 +51,6 @@ module "edatw_tunnel" {
         connect_timeout  = "30"
         http_host_header = "salary-mailman.eda-tw.com"
       }
-    },
-    {
-      # OpenClaw agent UI. The public hostname is gated by Cloudflare Access
-      # (see access.tf) — OpenClaw itself has no auth, so Access is the front door.
-      hostname = "openclaw.eda-tw.com"
-      service  = "http://openclaw.edatw-openclaw.svc.cluster.local:18789"
-      origin_request = {
-        connect_timeout  = "30"
-        http_host_header = "openclaw.eda-tw.com"
-      }
     }
   ]
 
@@ -81,10 +71,39 @@ module "edatw_tunnel" {
       proxied = true
       comment = "Salary Mailman Application - EDATW"
     }
+  }
+}
+
+# Dedicated tunnel for OpenClaw (edatw-lab only). Kept separate from talos-edatw:
+# that tunnel's connector also runs in other clusters that don't have OpenClaw, and
+# a shared tunnel would let openclaw.eda-tw.com requests land on a connector with no
+# OpenClaw backend (502). This tunnel's connector runs only in edatw-lab
+# (argocd/edatw-openclaw).
+module "openclaw_tunnel" {
+  source = "../modules/cloudflared"
+
+  account_id  = var.cloudflare_account_id
+  tunnel_name = "openclaw-edatw"
+
+  ingress_rules = [
+    {
+      # OpenClaw agent UI. Gated by Cloudflare Access (access.tf); /assets is
+      # bypassed there so the SPA's lazy-loaded chunks aren't redirected to login.
+      hostname = "openclaw.eda-tw.com"
+      service  = "http://openclaw.edatw-openclaw.svc.cluster.local:18789"
+      origin_request = {
+        connect_timeout  = "30"
+        http_host_header = "openclaw.eda-tw.com"
+      }
+    }
+  ]
+
+  zone_id = var.cloudflare_zone_id
+  dns_records = {
     "openclaw" = {
       name    = "openclaw"
       proxied = true
-      comment = "OpenClaw Agent UI - EDATW (Cloudflare Access protected)"
+      comment = "OpenClaw Agent UI - EDATW (dedicated tunnel, Cloudflare Access)"
     }
   }
 }

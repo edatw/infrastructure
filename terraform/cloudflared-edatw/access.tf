@@ -49,3 +49,35 @@ resource "cloudflare_zero_trust_access_application" "openclaw" {
     }
   ]
 }
+
+# --- Static asset bypass ------------------------------------------------------
+# OpenClaw's SPA lazy-loads JS/CSS chunks under /assets/. Access protects every
+# path by default, so an unauthenticated (or stale-session) chunk fetch gets a
+# 302 -> login HTML instead of JavaScript, breaking dynamic import() with
+# "Failed to fetch dynamically imported module". Bypass Access for /assets: the
+# chunks are non-sensitive compiled frontend code; the app pages + gateway API
+# stay gated by the root app above (plus OpenClaw's own gateway token).
+resource "cloudflare_zero_trust_access_policy" "openclaw_assets_bypass" {
+  account_id = var.cloudflare_account_id
+  name       = "openclaw-assets-bypass"
+  decision   = "bypass"
+
+  include = [{ everyone = {} }]
+}
+
+# Path-scoped app — more specific than the root app, so it wins for /assets.
+resource "cloudflare_zero_trust_access_application" "openclaw_assets" {
+  account_id           = var.cloudflare_account_id
+  name                 = "openclaw-assets"
+  domain               = "openclaw.eda-tw.com/assets"
+  type                 = "self_hosted"
+  session_duration     = "24h"
+  app_launcher_visible = false
+
+  policies = [
+    {
+      id         = cloudflare_zero_trust_access_policy.openclaw_assets_bypass.id
+      precedence = 1
+    }
+  ]
+}

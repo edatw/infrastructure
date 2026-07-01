@@ -213,13 +213,16 @@ Ensure all required variables are set in terraform.tfvars:
 | Name | Source | Version |
 | ---- | ------ | ------- |
 | <a name="module_edatw_tunnel"></a> [edatw\_tunnel](#module\_edatw\_tunnel) | ../modules/cloudflared | n/a |
+| <a name="module_openclaw_tunnel"></a> [openclaw\_tunnel](#module\_openclaw\_tunnel) | ../modules/cloudflared | n/a |
 
 ## Resources
 
 | Name | Type |
 | ---- | ---- |
 | [cloudflare_zero_trust_access_application.openclaw](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_application) | resource |
+| [cloudflare_zero_trust_access_application.openclaw_assets](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_application) | resource |
 | [cloudflare_zero_trust_access_policy.openclaw_allow](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_policy) | resource |
+| [cloudflare_zero_trust_access_policy.openclaw_assets_bypass](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_policy) | resource |
 | [cloudflare_zero_trust_access_service_token.openclaw_agent](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_service_token) | resource |
 
 ## Inputs
@@ -239,6 +242,8 @@ Ensure all required variables are set in terraform.tfvars:
 | <a name="output_openclaw_access_app_id"></a> [openclaw\_access\_app\_id](#output\_openclaw\_access\_app\_id) | Cloudflare Access application ID protecting openclaw.eda-tw.com |
 | <a name="output_openclaw_agent_client_id"></a> [openclaw\_agent\_client\_id](#output\_openclaw\_agent\_client\_id) | Service token Client ID for agents (send as CF-Access-Client-Id header) |
 | <a name="output_openclaw_agent_client_secret"></a> [openclaw\_agent\_client\_secret](#output\_openclaw\_agent\_client\_secret) | Service token Client Secret for agents (send as CF-Access-Client-Secret header). Only retrievable now — store it securely. |
+| <a name="output_openclaw_tunnel_id"></a> [openclaw\_tunnel\_id](#output\_openclaw\_tunnel\_id) | Cloudflare Tunnel ID for the dedicated OpenClaw tunnel (openclaw-edatw) |
+| <a name="output_openclaw_tunnel_token"></a> [openclaw\_tunnel\_token](#output\_openclaw\_tunnel\_token) | Tunnel token for the OpenClaw cloudflared connector (edatw-lab). Store in the edatw-openclaw SOPS secret. |
 | <a name="output_tunnel_cname"></a> [tunnel\_cname](#output\_tunnel\_cname) | CNAME target for the tunnel |
 | <a name="output_tunnel_id"></a> [tunnel\_id](#output\_tunnel\_id) | Cloudflare Tunnel ID for salary-mailman |
 | <a name="output_tunnel_name"></a> [tunnel\_name](#output\_tunnel\_name) | Cloudflare Tunnel name |

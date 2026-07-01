@@ -14,6 +14,9 @@ resources:
   # mTLS cert chains to the shared openshell-ca for the OpenShell sandbox backend.
   - certificate-openshell-client.yaml
   - openclawinstance.yaml
+  # Dedicated cloudflared connector for the openclaw-edatw tunnel (edatw-lab only).
+  # Token secret (cloudflared-openclaw-credentials) comes from the edatw-lab overlay.
+  - cloudflared.yaml
 
 labels:
   - pairs:

@@ -43,3 +43,16 @@ output "openclaw_agent_client_secret" {
   value       = cloudflare_zero_trust_access_service_token.openclaw_agent.client_secret
   sensitive   = true
 }
+
+# --- OpenClaw dedicated tunnel ---
+
+output "openclaw_tunnel_id" {
+  description = "Cloudflare Tunnel ID for the dedicated OpenClaw tunnel (openclaw-edatw)"
+  value       = module.openclaw_tunnel.tunnel_id
+}
+
+output "openclaw_tunnel_token" {
+  description = "Tunnel token for the OpenClaw cloudflared connector (edatw-lab). Store in the edatw-openclaw SOPS secret."
+  value       = module.openclaw_tunnel.tunnel_token
+  sensitive   = true
+}

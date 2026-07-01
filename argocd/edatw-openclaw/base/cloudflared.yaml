@@ -1,0 +1,100 @@
+---
+# Dedicated cloudflared connector for the `openclaw-edatw` tunnel (edatw-lab only).
+# Split from the shared `talos-edatw` tunnel because that tunnel's connector also
+# runs in other clusters without OpenClaw — a shared tunnel would let
+# openclaw.eda-tw.com requests land on a connector with no OpenClaw backend (502).
+#
+# Runs in the edatw-openclaw namespace, so the OpenClawInstance NetworkPolicy's
+# default same-namespace ingress already admits it (no cross-namespace rule needed).
+# Token comes from the SOPS-encrypted `cloudflared-openclaw-credentials` secret
+# (overlay), sourced from terraform output `openclaw_tunnel_token`.
+#
+# Selector uses the plain `app` label: the base/overlay kustomize `labels`
+# transformers set app.kubernetes.io/component (to `gateway`), so the selector
+# must key off a label they don't rewrite.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudflared-openclaw
+  namespace: edatw-openclaw
+  labels:
+    app: cloudflared-openclaw
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared-openclaw
+  namespace: edatw-openclaw
+  labels:
+    app: cloudflared-openclaw
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cloudflared-openclaw
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: cloudflared-openclaw
+    spec:
+      serviceAccountName: cloudflared-openclaw
+      dnsPolicy: ClusterFirst
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --protocol
+            - http2
+            - run
+            - --token
+            - $(TUNNEL_TOKEN)
+          env:
+            - name: TUNNEL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflared-openclaw-credentials
+                  key: tunnel-token
+          resources:
+            limits:
+              memory: 128Mi
+              cpu: 100m
+            requests:
+              memory: 64Mi
+              cpu: 50m
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 20241
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 20241
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
