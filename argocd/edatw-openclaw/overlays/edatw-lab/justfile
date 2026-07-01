@@ -1,0 +1,72 @@
+# edatw-openclaw overlay - edatw-lab (SOPS management)
+# Encrypts the KSOPS secrets in this overlay (secret-*.yaml) with the ArgoCD
+# edatw-lab age key; ArgoCD's repo-server (KSOPS) decrypts them at render time.
+#
+# Secrets managed here:
+#   secret-ghcr-pull.yaml          - GHCR image pull (dockerconfigjson)
+#   secret-cloudflared-tunnel.yaml - cloudflared tunnel token
+#   secret-openclaw-api-keys.yaml  - LLM provider creds (COPILOT_GITHUB_TOKEN)
+#
+# Typical flow for a new/edited secret: edit the plaintext, then `just encrypt-all`.
+
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# Shared makefiles SOPS module: central key ~/.config/sops/age/argocd-edatw-lab.txt
+# and generic sops-* recipes (sops-encrypt/decrypt/rekey/info/...).
+sops_env_name := "argocd-edatw-lab"
+
+import '../../../../makefiles/sops.just'
+
+# Glob of KSOPS-managed secrets in this overlay.
+secret_glob := "secret-*.yaml"
+
+[doc("List recipes")]
+default:
+    @just --list --unsorted
+
+[doc("List overlay secrets and their encryption status")]
+list:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for f in {{ secret_glob }}; do
+      [ -f "$f" ] || continue
+      if grep -q "^sops:" "$f" 2>/dev/null; then
+        echo "  [encrypted] $f"
+      else
+        echo "  [plaintext] $f"
+      fi
+    done
+
+[doc("Encrypt every plaintext secret in this overlay")]
+encrypt-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for f in {{ secret_glob }}; do
+      [ -f "$f" ] || continue
+      if ! grep -q "^sops:" "$f" 2>/dev/null; then
+        just sops-encrypt --file "$f"
+      fi
+    done
+
+[doc("Validate every encrypted secret decrypts")]
+validate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for f in {{ secret_glob }}; do
+      [ -f "$f" ] || continue
+      grep -q "^sops:" "$f" 2>/dev/null || continue
+      if SOPS_AGE_KEY_FILE="{{ sops_age_key_file }}" sops -d "$f" >/dev/null 2>&1; then
+        echo "  ok   $f"
+      else
+        echo "  FAIL $f"
+      fi
+    done
+
+[doc("Re-encrypt every secret with the current .sops.yaml recipients")]
+rekey-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for f in {{ secret_glob }}; do
+      [ -f "$f" ] || continue
+      grep -q "^sops:" "$f" 2>/dev/null && just sops-rekey --file "$f"
+    done

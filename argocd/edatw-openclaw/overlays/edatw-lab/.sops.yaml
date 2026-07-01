@@ -1,0 +1,7 @@
+# SOPS configuration for the edatw-openclaw edatw-lab overlay (ArgoCD KSOPS).
+# Same recipient as the central argocd/.sops.yaml (key: argocd-edatw-lab), so
+# ArgoCD's repo-server decrypts these unchanged. KSOPS secrets are secret-*.yaml.
+creation_rules:
+  - path_regex: secret-.*\.ya?ml$
+    encrypted_regex: '^(data|stringData)$'
+    age: age1nf9ewj7cepndennpcxz77sun7fecph4wqgfkusr53vnkv7g0sedq8qj22d
