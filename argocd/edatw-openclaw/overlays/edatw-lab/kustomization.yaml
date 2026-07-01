@@ -6,6 +6,9 @@ namespace: edatw-openclaw
 
 resources:
   - ../../base
+  # Tailscale egress to the Ollama server on the tailnet (OpenClaw's default LLM
+  # provider). Requires the Tailscale operator (flux/base/tailscale-operator).
+  - service-ollama-egress.yaml
   # ingress-tailscale.yaml is intentionally NOT included yet — enable it after
   # the gateway/UI is verified (https://openclaw.<tailnet>.ts.net).
 

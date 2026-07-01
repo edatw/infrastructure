@@ -12,3 +12,5 @@ files:
   - secret-ghcr-pull.yaml
   # Tunnel token for the dedicated openclaw-edatw cloudflared connector.
   - secret-cloudflared-tunnel.yaml
+  # LLM provider credentials (COPILOT_GITHUB_TOKEN) consumed via envFrom.
+  - secret-openclaw-api-keys.yaml

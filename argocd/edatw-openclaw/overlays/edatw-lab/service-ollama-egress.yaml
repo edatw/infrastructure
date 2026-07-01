@@ -1,0 +1,19 @@
+---
+# Tailscale egress: exposes the Ollama server on the tailnet as an in-cluster
+# Service. The Tailscale operator (flux/base/tailscale-operator) watches the
+# tailnet-fqdn annotation and provisions an egress proxy that DNATs to the host.
+# OpenClaw reaches Ollama at:
+#   http://ollama.edatw-openclaw.svc.cluster.local:11434
+# (the proxy forwards the same port — no port translation). Env-specific host,
+# so this lives in the overlay rather than base.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: edatw-openclaw
+  annotations:
+    tailscale.com/tailnet-fqdn: shangkuei-windows-asrock.vimba-char.ts.net
+spec:
+  type: ExternalName
+  # Overwritten by the Tailscale operator with the in-cluster proxy CNAME.
+  externalName: placeholder

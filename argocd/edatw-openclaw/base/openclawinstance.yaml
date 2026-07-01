@@ -34,15 +34,24 @@ spec:
       existingClaim: openclaw-data-fsfix
 
   # Install the OpenShell sandbox plugin (npm, via init container). The openshell
-  # CLI it shells out to is baked into the custom image (on PATH).
+  # CLI it shells out to is baked into the custom image (on PATH). The copilot
+  # plugin provides the github-copilot fallback provider (external Copilot CLI
+  # runtime); it needs a Copilot OAuth token (see envFrom below).
   plugins:
     - "@openclaw/openshell-sandbox"
+    - "@openclaw/copilot"
 
   env:
     # The openshell CLI connects directly to this endpoint and derives its mTLS
     # bundle dir from the (sanitized) URL — must match the mount path below.
     - name: OPENSHELL_GATEWAY_ENDPOINT
       value: "https://openshell.openshell.svc.cluster.local:8080"
+
+  # LLM provider credentials (COPILOT_GITHUB_TOKEN for the github-copilot
+  # fallback). Secret delivered SOPS-encrypted via the edatw-lab overlay (KSOPS).
+  envFrom:
+    - secretRef:
+        name: openclaw-api-keys
 
   # Mount the client mTLS bundle where the openshell CLI looks for a direct
   # https endpoint: ~/.config/openshell/gateways/<sanitized-endpoint>/mtls/
@@ -78,6 +87,17 @@ spec:
           ports:
             - protocol: TCP
               port: 8080
+        # Ollama over the tailnet: the `ollama` ExternalName Service (overlay)
+        # resolves to the Tailscale egress proxy in the `tailscale` namespace,
+        # which DNATs to the Ollama host on 11434. (Copilot fallback is plain
+        # HTTPS, already covered by the default egress.)
+        - to:
+            - namespaceSelector:
+                matchLabels:
+                  kubernetes.io/metadata.name: tailscale
+          ports:
+            - protocol: TCP
+              port: 11434
 
   # Control UI is reached via the cloudflared tunnel (no Ingress for the operator
   # to derive the origin from), so allow it explicitly. First-class gateway field;
@@ -86,11 +106,32 @@ spec:
     controlUiOrigins:
       - https://openclaw.eda-tw.com
 
-  # OpenClaw app config (openclaw.json). Route tool execution into OpenShell.
+  # OpenClaw app config (openclaw.json). Route tool execution into OpenShell,
+  # and set the LLM providers: Ollama (on the tailnet) as the default primary,
+  # GitHub Copilot as the fallback.
   config:
     mergeMode: merge
     raw:
+      # LLM provider registry. Ollama is reached via the Tailscale egress Service
+      # (overlay). Explicit baseUrl disables auto-discovery, so models must be
+      # declared. No `/v1` suffix — that would select OpenAI-compat mode where
+      # tool calling is unreliable; `api: ollama` keeps native tool-calling.
+      models:
+        providers:
+          ollama:
+            baseUrl: "http://ollama.edatw-openclaw.svc.cluster.local:11434"
+            api: "ollama"
+            apiKey: "ollama-local" # placeholder; the LAN host needs no real key
+            models:
+              - id: "gemma4"
+                name: "gemma4"
       plugins:
+        # Allowlist gates which plugins may load; include copilot alongside the
+        # existing ones so the github-copilot fallback runtime is permitted.
+        allow:
+          - openshell
+          - workboard
+          - copilot
         entries:
           openshell:
             enabled: true
@@ -103,10 +144,19 @@ spec:
             enabled: true
       agents:
         defaults:
+          # Default model = local Ollama; fall back to GitHub Copilot when the
+          # tailnet host / Ollama is unreachable.
+          model:
+            primary: "ollama/gemma4"
+            fallbacks:
+              - "github-copilot/auto"
+          # Route the copilot model ref through the external Copilot CLI runtime
+          # (provided by the @openclaw/copilot plugin). Auth = COPILOT_GITHUB_TOKEN
+          # from the openclaw-api-keys Secret (envFrom above).
+          models:
+            "github-copilot/auto":
+              agentRuntime:
+                id: copilot
           sandbox:
             mode: all
             backend: openshell
-
-  # TODO: add an LLM provider key before the agent can run, e.g.
-  #   envFrom: [{ secretRef: { name: openclaw-api-keys } }]
-  # (create that Secret via the edatw-lab overlay, SOPS-encrypted).
