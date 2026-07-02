@@ -119,15 +119,19 @@ spec:
     # Force-rebuild these subtrees from the CR on every restart (delete from the
     # PVC base, then re-apply from raw below).
     #  - mcp.servers: makes the MCP server registry match the CR exactly (wipes
-    #    any Control-UI-added servers), leaving other mcp.* settings intact.
-    #  - mcpServers:  purges the stale, wrongly-keyed entry a Control-UI edit
-    #    persisted to the PVC (legacy `mcpServers` vs the schema's `mcp.servers`).
-    #    That unrecognized root key fails strict startup validation (<root>:
-    #    Invalid input) and crash-loops the pod, and a plain merge can't remove
-    #    it (CR has no `mcpServers`, so forcePaths just deletes it).
+    #    any Control-UI-added servers), leaving other mcp.* settings intact. Also
+    #    covers the earlier crash cause — a Control-UI edit had persisted the MCP
+    #    server under the legacy `mcpServers` root key (vs the schema's
+    #    `mcp.servers`), failing strict startup validation. That stale key has
+    #    since been purged from the PVC, so it no longer needs a forcePaths entry.
+    #  - agents.defaults.models: the per-model override map acts as an ALLOWLIST
+    #    of "configured" (selectable) models — a non-empty map hides every other
+    #    discovered model. The CR omits it (empty = "all models selectable"), so
+    #    forcePaths deletes any stale entry from the PVC to keep all of the
+    #    auto-discovered github-copilot/* + ollama/* models selectable.
     forcePaths:
       - mcp.servers
-      - mcpServers
+      - agents.defaults.models
     raw:
       # SECURITY — override the operator's controlUi.dangerouslyDisableDeviceAuth
       # to FALSE, re-enabling OpenClaw per-device identity/pairing (verified to work
@@ -168,7 +172,9 @@ spec:
       mcp:
         servers:
           autocad:
-            url: "http://ollama.edatw-openclaw.svc.cluster.local:8088"
+            # SSE endpoint path is /sse; keep it in the CR or forcePaths (mcp.servers)
+            # strips the runtime-added suffix on the next restart.
+            url: "http://ollama.edatw-openclaw.svc.cluster.local:8088/sse"
             transport: "sse"
       plugins:
         # Allowlist gates which plugins may load; include copilot alongside the
@@ -197,18 +203,19 @@ spec:
       agents:
         defaults:
           # Default model = local Ollama; fall back to GitHub Copilot when the
-          # tailnet host / Ollama is unreachable.
+          # tailnet host / Ollama is unreachable. github-copilot/auto lets Copilot
+          # pick a model; the @openclaw/copilot plugin owns the runtime + auth
+          # (COPILOT_GITHUB_TOKEN from openclaw-api-keys), so no per-model
+          # agentRuntime override is needed.
           model:
             primary: "ollama/gemma4"
             fallbacks:
               - "github-copilot/auto"
-          # Route the copilot model ref through the external Copilot CLI runtime
-          # (provided by the @openclaw/copilot plugin). Auth = COPILOT_GITHUB_TOKEN
-          # from the openclaw-api-keys Secret (envFrom above).
-          models:
-            "github-copilot/auto":
-              agentRuntime:
-                id: copilot
+          # NOTE: agents.defaults.models is intentionally omitted. That map is an
+          # ALLOWLIST of selectable models — any entry hides all other discovered
+          # models. Leaving it empty makes every auto-discovered model selectable
+          # (`openclaw models status` -> "Configured models (0): all"). It is in
+          # forcePaths above so a stale PVC copy can't re-introduce the allowlist.
           sandbox:
             mode: all
             backend: openshell
