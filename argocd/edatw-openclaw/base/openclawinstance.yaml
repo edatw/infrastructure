@@ -154,6 +154,13 @@ spec:
           - openshell
           - workboard
           - copilot
+        # Required since the OpenClaw config schema made plugins.allow also gate
+        # bundled provider discovery: without this, startup validation fails with
+        # "<root>: Invalid input" and the pod crash-loops at init-plugins.
+        # "compat" = what `openclaw doctor --fix` sets: keep the legacy behavior
+        # (bundled providers discovered regardless of allow). Tighten to
+        # "allowlist" later if bundled providers should be gated by allow.
+        bundledDiscovery: compat
         entries:
           openshell:
             enabled: true
