@@ -44,3 +44,12 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/replicas
+    # The Tailscale operator rewrites the ollama egress Service's externalName
+    # from the manifest's `placeholder` to the in-cluster proxy DNS name. Ignore
+    # it so ArgoCD (selfHeal) doesn't fight the operator and flap the egress.
+    - group: ""
+      kind: Service
+      name: ollama
+      namespace: edatw-openclaw
+      jsonPointers:
+        - /spec/externalName
