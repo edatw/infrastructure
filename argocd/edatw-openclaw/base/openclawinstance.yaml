@@ -112,35 +112,23 @@ spec:
   config:
     mergeMode: merge
     raw:
-      # SECURITY — the gateway is public (cloudflared tunnel) with NO Cloudflare
-      # Access (Access can't pass OpenClaw device pairing: the client sends no
-      # custom headers, so it can't carry a CF-Access service token). Auth is
-      # OpenClaw-native, in two layers:
-      #
-      #  1) Gateway token — the openclaw-operator AUTO-GENERATES and wires it
-      #     (Secret openclaw-gateway-token; required, fail-closed at the WS
-      #     handshake). We deliberately do NOT override gateway.auth here — using
-      #     the operator-managed token avoids a second, orphaned secret. Read the
-      #     token to log in: `kubectl -n edatw-openclaw get secret
-      #     openclaw-gateway-token -o jsonpath='{.data.token}' | base64 -d`.
-      #  2) Gateway-owned pairing — a new node lands `pending`/`unapproved` until
-      #     an operator approves it (mints per-node command scopes). Manual
-      #     approval is the default (we don't set nodes.pairing.autoApproveCidrs).
-      #
-      # allowInsecureAuth: the operator injects controlUi.dangerouslyDisableDeviceAuth
-      # (headless deploy => no interactive per-device bootstrap, so auth = token).
-      # WITHOUT allowInsecureAuth, token sessions are capped at operator.pairing+
-      # read and CANNOT approve node command scopes (deadlock => nodes stay
-      # `unapproved`, see gateway/operator-scopes). WITH it, a token-authenticated
-      # session gets the full operator scope set and can approve nodes. Net: the
-      # gateway token is effectively the operator/admin credential — acceptable for
-      # this token-gated, rate-limited, single-operator gateway. (Tailnet-only
-      # ingress is the safer alternative if public token-admin is undesirable.)
-      #
-      # Tool exec stays sandboxed (agents.defaults.sandbox below).
+      # SECURITY — override the operator's controlUi.dangerouslyDisableDeviceAuth
+      # to FALSE, re-enabling OpenClaw per-device identity/pairing (verified to work
+      # in this environment). config.raw merges OVER the operator defaults, so this
+      # wins. The operator still manages the rest: gateway.auth (Secret
+      # openclaw-gateway-token, mode: token, OPENCLAW_GATEWAY_TOKEN) and
+      # gateway.mode: local — left as-is.
+      #  - Log in to the Control UI with the token in the URL FRAGMENT (NOT
+      #    ?query): https://openclaw.eda-tw.com/#token=<token>
+      #      token: kubectl -n edatw-openclaw get secret openclaw-gateway-token \
+      #        -o jsonpath='{.data.token}' | base64 -d
+      #    controlUiOrigins (spec.gateway below) already allows this host.
+      #  - Nodes are gated by device pairing approval. Public exposure is behind the
+      #    cloudflared tunnel + edge rate-limit. Tool exec stays sandboxed
+      #    (agents.defaults.sandbox below).
       gateway:
         controlUi:
-          allowInsecureAuth: true
+          dangerouslyDisableDeviceAuth: false
       # LLM provider registry. Ollama is reached via the Tailscale egress Service
       # (overlay). Explicit baseUrl disables auto-discovery, so models must be
       # declared. No `/v1` suffix — that would select OpenAI-compat mode where
