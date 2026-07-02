@@ -219,29 +219,21 @@ Ensure all required variables are set in terraform.tfvars:
 
 | Name | Type |
 | ---- | ---- |
-| [cloudflare_zero_trust_access_application.openclaw](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_application) | resource |
-| [cloudflare_zero_trust_access_application.openclaw_assets](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_application) | resource |
-| [cloudflare_zero_trust_access_policy.openclaw_allow](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_policy) | resource |
-| [cloudflare_zero_trust_access_policy.openclaw_assets_bypass](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_policy) | resource |
-| [cloudflare_zero_trust_access_service_token.openclaw_agent](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/zero_trust_access_service_token) | resource |
+| [cloudflare_ruleset.openclaw_ratelimit](https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs/resources/ruleset) | resource |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 | ---- | ----------- | ---- | ------- | :------: |
 | <a name="input_cloudflare_account_id"></a> [cloudflare\_account\_id](#input\_cloudflare\_account\_id) | Cloudflare Account ID | `string` | n/a | yes |
-| <a name="input_cloudflare_api_token"></a> [cloudflare\_api\_token](#input\_cloudflare\_api\_token) | Cloudflare API token with Zone:Read, Tunnel:Edit, and Access: Apps and Policies:Edit + Access: Service Tokens:Edit permissions | `string` | n/a | yes |
+| <a name="input_cloudflare_api_token"></a> [cloudflare\_api\_token](#input\_cloudflare\_api\_token) | Cloudflare API token with Zone:Read, Tunnel:Edit permissions (Access perms no longer needed — OpenClaw Access was removed) | `string` | n/a | yes |
 | <a name="input_cloudflare_zone_id"></a> [cloudflare\_zone\_id](#input\_cloudflare\_zone\_id) | Cloudflare Zone ID for shangkuei.xyz | `string` | n/a | yes |
-| <a name="input_openclaw_allowed_emails"></a> [openclaw\_allowed\_emails](#input\_openclaw\_allowed\_emails) | Email addresses allowed to log in to OpenClaw via Cloudflare Access (interactive browser login). The agent service token is always allowed in addition to these. | `list(string)` | n/a | yes |
 
 ## Outputs
 
 | Name | Description |
 | ---- | ----------- |
 | <a name="output_dns_records"></a> [dns\_records](#output\_dns\_records) | Created DNS records |
-| <a name="output_openclaw_access_app_id"></a> [openclaw\_access\_app\_id](#output\_openclaw\_access\_app\_id) | Cloudflare Access application ID protecting openclaw.eda-tw.com |
-| <a name="output_openclaw_agent_client_id"></a> [openclaw\_agent\_client\_id](#output\_openclaw\_agent\_client\_id) | Service token Client ID for agents (send as CF-Access-Client-Id header) |
-| <a name="output_openclaw_agent_client_secret"></a> [openclaw\_agent\_client\_secret](#output\_openclaw\_agent\_client\_secret) | Service token Client Secret for agents (send as CF-Access-Client-Secret header). Only retrievable now — store it securely. |
 | <a name="output_openclaw_tunnel_id"></a> [openclaw\_tunnel\_id](#output\_openclaw\_tunnel\_id) | Cloudflare Tunnel ID for the dedicated OpenClaw tunnel (openclaw-edatw) |
 | <a name="output_openclaw_tunnel_token"></a> [openclaw\_tunnel\_token](#output\_openclaw\_tunnel\_token) | Tunnel token for the OpenClaw cloudflared connector (edatw-lab). Store in the edatw-openclaw SOPS secret. |
 | <a name="output_tunnel_cname"></a> [tunnel\_cname](#output\_tunnel\_cname) | CNAME target for the tunnel |

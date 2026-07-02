@@ -26,25 +26,10 @@ output "dns_records" {
   value       = module.edatw_tunnel.dns_records
 }
 
-# --- OpenClaw Cloudflare Access ---
-
-output "openclaw_access_app_id" {
-  description = "Cloudflare Access application ID protecting openclaw.eda-tw.com"
-  value       = cloudflare_zero_trust_access_application.openclaw.id
-}
-
-output "openclaw_agent_client_id" {
-  description = "Service token Client ID for agents (send as CF-Access-Client-Id header)"
-  value       = cloudflare_zero_trust_access_service_token.openclaw_agent.client_id
-}
-
-output "openclaw_agent_client_secret" {
-  description = "Service token Client Secret for agents (send as CF-Access-Client-Secret header). Only retrievable now — store it securely."
-  value       = cloudflare_zero_trust_access_service_token.openclaw_agent.client_secret
-  sensitive   = true
-}
-
 # --- OpenClaw dedicated tunnel ---
+# NOTE: Cloudflare Access was removed (it blocked OpenClaw device/node pairing).
+# Auth is now OpenClaw's own gateway token (config.raw gateway.auth in
+# argocd/edatw-openclaw). The tunnel still exposes openclaw.eda-tw.com publicly.
 
 output "openclaw_tunnel_id" {
   description = "Cloudflare Tunnel ID for the dedicated OpenClaw tunnel (openclaw-edatw)"

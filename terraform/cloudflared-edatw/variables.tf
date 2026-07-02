@@ -1,20 +1,14 @@
 # Salary Mailman Environment Variables
 
 variable "cloudflare_api_token" {
-  description = "Cloudflare API token with Zone:Read, Tunnel:Edit, and Access: Apps and Policies:Edit + Access: Service Tokens:Edit permissions"
+  description = "Cloudflare API token with Zone:Read, Tunnel:Edit permissions (Access perms no longer needed — OpenClaw Access was removed)"
   type        = string
   sensitive   = true
 }
 
-variable "openclaw_allowed_emails" {
-  description = "Email addresses allowed to log in to OpenClaw via Cloudflare Access (interactive browser login). The agent service token is always allowed in addition to these."
-  type        = list(string)
-
-  validation {
-    condition     = length(var.openclaw_allowed_emails) > 0
-    error_message = "Set at least one email for human (browser) access to OpenClaw; an empty list would leave only the agent service token able to authenticate."
-  }
-}
+# NOTE: the former `openclaw_allowed_emails` var was dropped with Cloudflare
+# Access. If it is still set in the (encrypted) terraform.tfvars, remove it there
+# too — an undeclared value only produces a harmless plan/apply warning until then.
 
 variable "cloudflare_account_id" {
   description = "Cloudflare Account ID"

@@ -87,8 +87,10 @@ module "openclaw_tunnel" {
 
   ingress_rules = [
     {
-      # OpenClaw agent UI. Gated by Cloudflare Access (access.tf); /assets is
-      # bypassed there so the SPA's lazy-loaded chunks aren't redirected to login.
+      # OpenClaw agent UI. Cloudflare Access removed (it broke device/node
+      # pairing); auth is now OpenClaw's own gateway token (config.raw
+      # gateway.auth in argocd/edatw-openclaw). This origin is PUBLIC — the
+      # token is the only auth layer, so keep the OpenClaw image current.
       hostname = "openclaw.eda-tw.com"
       service  = "http://openclaw.edatw-openclaw.svc.cluster.local:18789"
       origin_request = {
@@ -103,7 +105,7 @@ module "openclaw_tunnel" {
     "openclaw" = {
       name    = "openclaw"
       proxied = true
-      comment = "OpenClaw Agent UI - EDATW (dedicated tunnel, Cloudflare Access)"
+      comment = "OpenClaw Agent UI - EDATW (dedicated tunnel; auth via OpenClaw gateway token)"
     }
   }
 }
