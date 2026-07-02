@@ -117,24 +117,30 @@ spec:
       # custom headers, so it can't carry a CF-Access service token). Auth is
       # OpenClaw-native, in two layers:
       #
-      #  1) Shared gateway token (below) — REQUIRED, fail-closed at the WS
-      #     handshake. Every client (browser UI + nodes) must present it.
-      #     Injected from the SOPS secret openclaw-api-keys (envFrom).
-      #  2) Gateway-owned pairing (gateway.nodes.pairing) — a new node lands in
-      #     `pending` and does NOTHING until manually approved
-      #     (`openclaw nodes approve <id>`), which mints a per-node token.
-      #     Manual approval is the default: we deliberately DO NOT set
-      #     gateway.nodes.pairing.autoApproveCidrs (that is the only thing that
-      #     would auto-approve). Do not add it for a public gateway.
+      #  1) Gateway token — the openclaw-operator AUTO-GENERATES and wires it
+      #     (Secret openclaw-gateway-token; required, fail-closed at the WS
+      #     handshake). We deliberately do NOT override gateway.auth here — using
+      #     the operator-managed token avoids a second, orphaned secret. Read the
+      #     token to log in: `kubectl -n edatw-openclaw get secret
+      #     openclaw-gateway-token -o jsonpath='{.data.token}' | base64 -d`.
+      #  2) Gateway-owned pairing — a new node lands `pending`/`unapproved` until
+      #     an operator approves it (mints per-node command scopes). Manual
+      #     approval is the default (we don't set nodes.pairing.autoApproveCidrs).
       #
-      # Tool exec stays sandboxed (agents.defaults.sandbox below). RESIDUAL RISK:
-      # a public admin/exec surface — the token+pairing gate *use*, not a future
-      # OpenClaw auth-bypass CVE, so keep the image current (justfile release).
-      # Tailnet-only ingress (tailscale operator) remains the safer alternative.
+      # allowInsecureAuth: the operator injects controlUi.dangerouslyDisableDeviceAuth
+      # (headless deploy => no interactive per-device bootstrap, so auth = token).
+      # WITHOUT allowInsecureAuth, token sessions are capped at operator.pairing+
+      # read and CANNOT approve node command scopes (deadlock => nodes stay
+      # `unapproved`, see gateway/operator-scopes). WITH it, a token-authenticated
+      # session gets the full operator scope set and can approve nodes. Net: the
+      # gateway token is effectively the operator/admin credential — acceptable for
+      # this token-gated, rate-limited, single-operator gateway. (Tailnet-only
+      # ingress is the safer alternative if public token-admin is undesirable.)
+      #
+      # Tool exec stays sandboxed (agents.defaults.sandbox below).
       gateway:
-        auth:
-          mode: token
-          token: "${OPENCLAW_GATEWAY_TOKEN}"
+        controlUi:
+          allowInsecureAuth: true
       # LLM provider registry. Ollama is reached via the Tailscale egress Service
       # (overlay). Explicit baseUrl disables auto-discovery, so models must be
       # declared. No `/v1` suffix — that would select OpenAI-compat mode where
