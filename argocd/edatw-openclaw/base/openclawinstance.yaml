@@ -147,15 +147,6 @@ spec:
             models:
               - id: "gemma4"
                 name: "gemma4"
-      # MCP servers (SSE). AutoCAD MCP runs on the same tailnet node as Ollama
-      # (shangkuei-windows-asrock), reached via the `ollama` egress Service. Needs
-      # BOTH the :8080 tailscale egress rule (networkPolicy above) AND the host
-      # serving the MCP server on 0.0.0.0:8080.
-      mcpServers:
-        servers:
-          autocad:
-            url: "http://ollama.edatw-openclaw.svc.cluster.local:8080"
-            transport: "sse"
       plugins:
         # Allowlist gates which plugins may load; include copilot alongside the
         # existing ones so the github-copilot fallback runtime is permitted.
