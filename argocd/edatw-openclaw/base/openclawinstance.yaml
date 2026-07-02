@@ -91,8 +91,8 @@ spec:
         # ExternalName Service (overlay), which resolves to the Tailscale egress
         # proxy in the `tailscale` namespace (full-host DNAT, all ports).
         #  - 11434: Ollama LLM server.
-        #  - 8080:  AutoCAD MCP server (SSE), on the same host (see mcpServers
-        #           below). The host must listen on 0.0.0.0:8080.
+        #  - 8088:  AutoCAD MCP server (SSE), on the same host (see mcp.servers
+        #           below). The host must listen on 0.0.0.0:8088.
         # (Copilot fallback is plain HTTPS, already covered by default egress.)
         - to:
             - namespaceSelector:
@@ -102,7 +102,7 @@ spec:
             - protocol: TCP
               port: 11434
             - protocol: TCP
-              port: 8080
+              port: 8088
 
   # Control UI is reached via the cloudflared tunnel (no Ingress for the operator
   # to derive the origin from), so allow it explicitly. First-class gateway field;
@@ -116,6 +116,18 @@ spec:
   # GitHub Copilot as the fallback.
   config:
     mergeMode: merge
+    # Force-rebuild these subtrees from the CR on every restart (delete from the
+    # PVC base, then re-apply from raw below).
+    #  - mcp.servers: makes the MCP server registry match the CR exactly (wipes
+    #    any Control-UI-added servers), leaving other mcp.* settings intact.
+    #  - mcpServers:  purges the stale, wrongly-keyed entry a Control-UI edit
+    #    persisted to the PVC (legacy `mcpServers` vs the schema's `mcp.servers`).
+    #    That unrecognized root key fails strict startup validation (<root>:
+    #    Invalid input) and crash-loops the pod, and a plain merge can't remove
+    #    it (CR has no `mcpServers`, so forcePaths just deletes it).
+    forcePaths:
+      - mcp.servers
+      - mcpServers
     raw:
       # SECURITY — override the operator's controlUi.dangerouslyDisableDeviceAuth
       # to FALSE, re-enabling OpenClaw per-device identity/pairing (verified to work
@@ -147,6 +159,17 @@ spec:
             models:
               - id: "gemma4"
                 name: "gemma4"
+      # MCP servers. Correct schema key is `mcp.servers` (NOT the legacy
+      # `mcpServers`, which fails strict startup validation). Canonical shape
+      # confirmed via `openclaw mcp set` + `openclaw config validate`. AutoCAD MCP
+      # (SSE) runs on the same tailnet host as Ollama (shangkuei-windows-asrock),
+      # reached via the `ollama` egress Service. Requires BOTH the :8088 tailscale
+      # egress rule (networkPolicy above) AND the host serving it on 0.0.0.0:8088.
+      mcp:
+        servers:
+          autocad:
+            url: "http://ollama.edatw-openclaw.svc.cluster.local:8088"
+            transport: "sse"
       plugins:
         # Allowlist gates which plugins may load; include copilot alongside the
         # existing ones so the github-copilot fallback runtime is permitted.
