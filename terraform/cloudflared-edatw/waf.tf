@@ -6,10 +6,12 @@
 # that does NOT interfere with pairing: it throttles per-source-IP request floods
 # (e.g. token brute-force against the WS handshake) without any login challenge.
 #
-# 100 requests / 60s per client IP (per colo); offenders are blocked for 60s.
-# Sized to sit well above a single user's SPA load + WebSocket reconnects while
-# still stopping high-rate guessing. Raise requests_per_period if a legitimate
-# multi-user NAT trips it.
+# 50 ORIGIN-bound requests / 10s per client IP (per colo); offenders blocked 10s.
+# period/mitigation_timeout are pinned to 10 because the zone's plan only permits
+# a 10s window (free-tier rate limiting). requests_to_origin=true counts only
+# cache-missing requests, so the SPA's (cacheable) static assets don't trip it —
+# the WebSocket handshake + API (always origin) are what get throttled, which is
+# exactly the brute-force surface. Raise requests_per_period if a NAT trips it.
 resource "cloudflare_ruleset" "openclaw_ratelimit" {
   zone_id     = var.cloudflare_zone_id
   name        = "openclaw-ratelimit"
@@ -19,15 +21,16 @@ resource "cloudflare_ruleset" "openclaw_ratelimit" {
 
   rules = [{
     ref         = "openclaw_rl"
-    description = "Block IPs exceeding 100 req/min to openclaw.eda-tw.com"
+    description = "Block IPs exceeding 50 origin req/10s to openclaw.eda-tw.com"
     expression  = "(http.host eq \"openclaw.eda-tw.com\")"
     action      = "block"
     enabled     = true
     ratelimit = {
       characteristics     = ["ip.src", "cf.colo.id"]
-      period              = 60
-      requests_per_period = 100
-      mitigation_timeout  = 60
+      period              = 10
+      requests_per_period = 50
+      mitigation_timeout  = 10
+      requests_to_origin  = true
     }
   }]
 }
