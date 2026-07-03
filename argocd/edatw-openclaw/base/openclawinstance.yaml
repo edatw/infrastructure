@@ -224,3 +224,21 @@ spec:
           sandbox:
             mode: all
             backend: openshell
+        # Named agents. `main` (implicit default) stays sandboxed via defaults.
+        list:
+          - id: main
+          # Dedicated AutoCAD agent, sandbox OFF. The openshell sandbox (mode:all)
+          # makes the tool policy strip every non-sandboxable tool, which removes
+          # remote MCP tools (autocad__* — see mcp.servers.autocad). Disabling the
+          # sandbox for THIS agent keeps those tools; the default `main` agent
+          # stays sandboxed. Select "autocad" in the Control UI agent switcher.
+          # Note: this agent runs ALL tools unsandboxed — keep it scoped to CAD.
+          # `mode: "off"` MUST be quoted — bare off is a YAML boolean (false).
+          - id: autocad
+            name: autocad
+            sandbox:
+              mode: "off"
+            model:
+              primary: "github-copilot/claude-sonnet-5"
+              fallbacks:
+                - "github-copilot/auto"
