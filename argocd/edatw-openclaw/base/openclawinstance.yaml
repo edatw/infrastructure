@@ -176,6 +176,11 @@ spec:
             # strips the runtime-added suffix on the next restart.
             url: "http://ollama.edatw-openclaw.svc.cluster.local:8088/sse"
             transport: "sse"
+      # Enable the /mcp slash command in the Control UI chat (disabled by default:
+      # "/mcp is disabled. Set commands.mcp=true to enable."). Additive scalar, so
+      # the CR value wins the deep-merge on restart without a forcePaths entry.
+      commands:
+        mcp: true
       plugins:
         # Allowlist gates which plugins may load; include copilot alongside the
         # existing ones so the github-copilot fallback runtime is permitted.
