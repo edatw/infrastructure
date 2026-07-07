@@ -15,6 +15,7 @@ files:
   - secret-eda-cli.sops.yaml
   - secret-eda-creds.sops.yaml
   - secret-github-registry.sops.yaml
+  - secret-cloudflared-tunnel.yaml
   - persistent-volume-edatw-eda-backups.yaml
   - persistent-volume-edatw-eda-data.yaml
   - persistent-volume-edatw-eda-image.yaml

@@ -8,6 +8,7 @@ resources:
   - namespace.yaml
   - service-account-eda.yaml
   - statefulset-eda.yaml
+  - cloudflared.yaml
   - cronjob-backup.yaml
   - cronjob-notify.yaml
   - cronjob-probes.yaml

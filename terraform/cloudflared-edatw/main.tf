@@ -74,6 +74,51 @@ module "edatw_tunnel" {
   }
 }
 
+# Dedicated tunnel for the `eda` ed8 variant (edatw-lab only). Kept separate from
+# talos-edatw for the same reason as openclaw: talos-edatw's connector also runs in
+# clusters without the eda app, so a shared tunnel would route eda.eda-tw.com to a
+# connector with no eda backend (502). This tunnel's connector (cloudflared-eda)
+# runs only in edatw-lab (argocd/edatw-eda).
+module "eda_tunnel" {
+  source = "../modules/cloudflared"
+
+  account_id  = var.cloudflare_account_id
+  tunnel_name = "eda-edatw"
+
+  ingress_rules = [
+    {
+      hostname = "eda.eda-tw.com"
+      service  = "http://eda.edatw-eda.svc.cluster.local:80"
+      origin_request = {
+        connect_timeout  = "30"
+        http_host_header = "eda.eda-tw.com"
+      }
+    },
+    {
+      hostname = "eda-apiserver.eda-tw.com"
+      service  = "http://eda-apiserver.edatw-eda.svc.cluster.local:80"
+      origin_request = {
+        connect_timeout  = "30"
+        http_host_header = "eda-apiserver.eda-tw.com"
+      }
+    }
+  ]
+
+  zone_id = var.cloudflare_zone_id
+  dns_records = {
+    "eda" = {
+      name    = "eda"
+      proxied = true
+      comment = "EDA Application - EDATW"
+    }
+    "eda-apiserver" = {
+      name    = "eda-apiserver"
+      proxied = true
+      comment = "EDA API Server - EDATW"
+    }
+  }
+}
+
 # Dedicated tunnel for OpenClaw (edatw-lab only). Kept separate from talos-edatw:
 # that tunnel's connector also runs in other clusters that don't have OpenClaw, and
 # a shared tunnel would let openclaw.eda-tw.com requests land on a connector with no

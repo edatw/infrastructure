@@ -26,6 +26,19 @@ output "dns_records" {
   value       = module.edatw_tunnel.dns_records
 }
 
+# --- eda (ed8 variant) dedicated tunnel ---
+
+output "eda_tunnel_id" {
+  description = "Cloudflare Tunnel ID for the dedicated eda tunnel (eda-edatw)"
+  value       = module.eda_tunnel.tunnel_id
+}
+
+output "eda_tunnel_token" {
+  description = "Tunnel token for the eda cloudflared connector (edatw-lab). Store in the edatw-eda SOPS secret cloudflared-eda-credentials."
+  value       = module.eda_tunnel.tunnel_token
+  sensitive   = true
+}
+
 # --- OpenClaw dedicated tunnel ---
 # NOTE: Cloudflare Access was removed (it blocked OpenClaw device/node pairing).
 # Auth is now OpenClaw's own gateway token (config.raw gateway.auth in

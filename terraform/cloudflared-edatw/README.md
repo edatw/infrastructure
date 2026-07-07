@@ -212,6 +212,7 @@ Ensure all required variables are set in terraform.tfvars:
 
 | Name | Source | Version |
 | ---- | ------ | ------- |
+| <a name="module_eda_tunnel"></a> [eda\_tunnel](#module\_eda\_tunnel) | ../modules/cloudflared | n/a |
 | <a name="module_edatw_tunnel"></a> [edatw\_tunnel](#module\_edatw\_tunnel) | ../modules/cloudflared | n/a |
 | <a name="module_openclaw_tunnel"></a> [openclaw\_tunnel](#module\_openclaw\_tunnel) | ../modules/cloudflared | n/a |
 
@@ -234,6 +235,8 @@ Ensure all required variables are set in terraform.tfvars:
 | Name | Description |
 | ---- | ----------- |
 | <a name="output_dns_records"></a> [dns\_records](#output\_dns\_records) | Created DNS records |
+| <a name="output_eda_tunnel_id"></a> [eda\_tunnel\_id](#output\_eda\_tunnel\_id) | Cloudflare Tunnel ID for the dedicated eda tunnel (eda-edatw) |
+| <a name="output_eda_tunnel_token"></a> [eda\_tunnel\_token](#output\_eda\_tunnel\_token) | Tunnel token for the eda cloudflared connector (edatw-lab). Store in the edatw-eda SOPS secret cloudflared-eda-credentials. |
 | <a name="output_openclaw_tunnel_id"></a> [openclaw\_tunnel\_id](#output\_openclaw\_tunnel\_id) | Cloudflare Tunnel ID for the dedicated OpenClaw tunnel (openclaw-edatw) |
 | <a name="output_openclaw_tunnel_token"></a> [openclaw\_tunnel\_token](#output\_openclaw\_tunnel\_token) | Tunnel token for the OpenClaw cloudflared connector (edatw-lab). Store in the edatw-openclaw SOPS secret. |
 | <a name="output_tunnel_cname"></a> [tunnel\_cname](#output\_tunnel\_cname) | CNAME target for the tunnel |
