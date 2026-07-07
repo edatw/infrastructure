@@ -12,7 +12,6 @@ spec:
       name: http
     - port: 3306
       targetPort: mysql
-      nodePort: 30306
       name: mysql
   selector:
     app.kubernetes.io/component: eda
