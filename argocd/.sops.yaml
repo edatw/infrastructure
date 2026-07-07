@@ -37,6 +37,10 @@ creation_rules:
   - path_regex: .*/overlays/edatw-lab/.*secret.*\.(enc|yaml|yml)$
     encrypted_regex: '^(data|stringData)$'
     age: age1nf9ewj7cepndennpcxz77sun7fecph4wqgfkusr53vnkv7g0sedq8qj22d
+  # edatw-eda PersistentVolume files for edatw-lab (SMB shares; reuses ed8's SC)
+  - path_regex: edatw-eda/overlays/edatw-lab/.*persistent-volume.*\.(yaml|yml)$
+    encrypted_regex: '^(volumeHandle|source)$'
+    age: age1nf9ewj7cepndennpcxz77sun7fecph4wqgfkusr53vnkv7g0sedq8qj22d
 
   # ==========================================================================
   # shangkuei-xyz-talos overlay rules (existing cluster)

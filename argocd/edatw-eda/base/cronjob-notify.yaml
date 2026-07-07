@@ -1,0 +1,74 @@
+---
+# https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/cron-job-v1/#CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: eda-notify
+spec:
+  timeZone: Asia/Taipei
+  schedule: "15 6,12,16 * * *"
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 86400 # keep the last 3 jobs
+      template:
+        spec:
+          tolerations:
+            - key: CriticalAddonsOnly
+              operator: Exists
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/arch
+                        operator: In
+                        values:
+                          - amd64
+          serviceAccountName: eda
+          automountServiceAccountToken: false
+          imagePullSecrets:
+            - name: github-registry
+          containers:
+            - name: eda-cli
+              image: ghcr.io/edatw/ed8-cli:latest
+              imagePullPolicy: Always
+              workingDir: /usr/local/etc/ed8/cli
+              args:
+                - notification
+                - --output
+                - /usr/local/etc/ed8/notify/notify-
+              volumeMounts:
+                - name: eda-cli
+                  mountPath: /usr/local/etc/ed8/cli
+                  readOnly: true
+                - name: eda-data
+                  mountPath: /usr/local/etc/ed8/data
+                  readOnly: true
+                - name: eda-notify
+                  mountPath: /usr/local/etc/ed8/notify
+              resources:
+                requests:
+                  cpu: 1000m
+                  memory: 1Gi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                privileged: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                runAsUser: 999
+                seccompProfile:
+                  type: RuntimeDefault
+          volumes:
+            - name: eda-cli
+              secret:
+                secretName: eda-cli
+            - name: eda-data
+              persistentVolumeClaim:
+                claimName: edatw-eda-data
+            - name: eda-notify
+              persistentVolumeClaim:
+                claimName: edatw-eda-notify
+          restartPolicy: OnFailure

@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    annotations:
+        pv.kubernetes.io/provisioned-by: smb.csi.k8s.io
+    name: edatw-eda-image
+spec:
+    storageClassName: edatw-eda-smb
+    capacity:
+        storage: 100Gi
+    accessModes:
+        - ReadWriteMany
+    persistentVolumeReclaimPolicy: Retain
+    mountOptions:
+        - dir_mode=0750
+        - file_mode=0640
+        - uid=33
+        - gid=33
+    csi:
+        driver: smb.csi.k8s.io
+        readOnly: false
+        volumeHandle: ENC[AES256_GCM,data:IrpSy3Pp+LnNhN9GHn16Inhg7Ad/7Zu+fbS60w==,iv:UG7ZzjIfl+MfApaqQ1EZOqYQPCbyeU0lT2hcUAVl5dc=,tag:eG7SUEaOHpmOgKhwJz5tZA==,type:str]
+        volumeAttributes:
+            source: ENC[AES256_GCM,data:ytGN34W0R0dGWgfD/3qQ1F6Dopsymbo4bV+Yxv3ng0hFYg==,iv:RRGb6knAnDzmRdeXt+VEzHgD8RDCwvT3ppwHho0iLP0=,tag:0ynlo617Hk9Vp+StWdM59w==,type:str]
+        nodeStageSecretRef:
+            name: eda-creds
+            namespace: edatw-eda
+    claimRef:
+        name: edatw-eda-image
+        namespace: edatw-eda
+sops:
+    age:
+        - enc: |
+            -----BEGIN AGE ENCRYPTED FILE-----
+            YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSB5cmQxZkRZUW1vMGpRb1JW
+            cWxxdUdBaG5MYWFLMDh4akFudWlweGRQMndFCm96ZXAybkpGeWp5Vkc1WGU2SlFt
+            WDBid0xzV2JvKzdaMCtWdlNMTHVSTzQKLS0tIGFFem9GcDV1NnV1emsveXdVcExR
+            WkU3M2RxbE1FTThGOEhNMktrVVVMekEKC97h30GafrhqeiwtyO/lmjYIqd4iZFBQ
+            NyNMlvVamFolnrZ6V4vq29Ye2cQzieUn5VeIt4KTsREXj/EGo5wXig==
+            -----END AGE ENCRYPTED FILE-----
+          recipient: age1nf9ewj7cepndennpcxz77sun7fecph4wqgfkusr53vnkv7g0sedq8qj22d
+    encrypted_regex: ^(volumeHandle|source)$
+    lastmodified: "2026-07-07T13:44:28Z"
+    mac: ENC[AES256_GCM,data:3jhxbPzdcpGoJEuIlS16JrZdwtES2X6uUygelJhe/gphX6IThaViieoopBYFD6JZHnrlYMjumjWzFhpSaAbamMXDBvn5TFKhZF1qiH0Kt8SWMAGHWIjvITrKPb3q46fx1CboZoPce7VkAUcl+EKQYund0YMneSObcCY9qSMx6tM=,iv:UtvQ8i5/+LV5ajZjLJyBcncWapj0eeD20YAQAQtrI4U=,tag:HkvR1Nu9v4aDxKTQlyIesA==,type:str]
+    version: 3.13.2

@@ -6,5 +6,6 @@ resources:
   - appproject-edatw.yaml
   - application-edatw-cloudflared.yaml
   - application-edatw-ed8.yaml
+  - application-edatw-eda.yaml
   - application-edatw-openclaw.yaml
   - application-edatw-salary-mailman.yaml

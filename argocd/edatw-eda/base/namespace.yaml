@@ -1,0 +1,13 @@
+---
+# Namespace for edatw-eda application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edatw-eda
+  labels:
+    app.kubernetes.io/name: eda
+    app.kubernetes.io/component: eda
+    app.kubernetes.io/managed-by: kustomize
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged

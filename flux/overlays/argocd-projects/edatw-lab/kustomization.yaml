@@ -39,6 +39,16 @@ patches:
   - patch: |-
       - op: replace
         path: /spec/source/path
+        value: argocd/edatw-eda/overlays/edatw-lab
+      - op: replace
+        path: /spec/source/targetRevision
+        value: main
+    target:
+      kind: Application
+      name: edatw-eda
+  - patch: |-
+      - op: replace
+        path: /spec/source/path
         value: argocd/edatw-openclaw/overlays/edatw-lab
       - op: replace
         path: /spec/source/targetRevision
